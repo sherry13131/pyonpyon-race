@@ -6,7 +6,7 @@ debug after the code are almost done
 
 before 6 July:
 draw the interface of the game with colour.
-	for 2 players
+	for 1/2 players
 try writing the code for the decimal decoder, for the score and the timer
 	A score: HEX[7:6]
 	B score: HEX[5:4]
@@ -42,4 +42,9 @@ on the practica(13 July) :
 check the code
 debug
 combine any new features and check the code again
-if it is avaliable, 
+check extreme case on score and timer
+
+before the 20 July:
+fix the problem we saw on 13 July practical
+the game must be working.!!!! otherwise, just focus on the problems we got. (not adding any features)
+if it is avaliable, add features.
