@@ -1,0 +1,5 @@
+(Possible and intended)
+- accuracy score
+- timer
+- lives
+- different-coloured boxes for different actions
