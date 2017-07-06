@@ -1,5 +1,5 @@
 module pyonpyon(SW, HEX0, HEX1, CLOCK_50);
-  input [9:0] SW; // use SW[2] as enable(start the game), and SW[3] as reset_n (reset the game)
+  input [9:0] SW; // use SW[0] as enable(start the game), and SW[1] as reset_n (reset the game)
   input CLOCK_50; // internal DE2 clock 
   output [6:0] HEX0; // Display  value of Q1[0:3] on HEX0
   output [6:0] HEX1; // Display  value of Q2[0:3] on HEX1
@@ -8,9 +8,9 @@ module pyonpyon(SW, HEX0, HEX1, CLOCK_50);
   wire [3:0]Q2; // dec value obtained from counter for second digit
 
   counter cnt(
-    .enable(SW[2]),
+    .enable(SW[0]),
     .clk_default(CLOCK_50),
-    .reset_n(SW[3]), 
+    .reset_n(SW[1]), 
     .hex_out_one(Q1),
     .hex_out_two(Q2)
   );
