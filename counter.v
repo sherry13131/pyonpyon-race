@@ -108,6 +108,8 @@ module display_counter(enable, reset_n, clock, q0, q1);
       end
       else
         q0 <= q0 + 1'b1; // plus one if q0 (first digit is not 9)
+    // else // when reset_n is 1 and enable is 0
+    // do what? nothing?
     end
   end
 
@@ -116,7 +118,7 @@ endmodule
 
 
 
-module dec_decoder(D,C,B,A,H);   // not sure is DCBA or ABCD
+module dec_decoder(A,B,C,D,H);   // not sure is DCBA or ABCD
     input A;
     input B;
     input C;
