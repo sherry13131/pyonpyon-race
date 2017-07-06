@@ -1,9 +1,0 @@
-development log:
-
-3 July:
-- write the code of the counter in decimal.
-- show the number of counter on HEX0 and HEX1.
-- draw the FSM of the pyonpyon race game.
-	- 3 versions: 	simple (add the number of score whenever user click a button)
-					normal (add the number of score when user click the wrong button)
-					combine with "if block" (using the normal v. FSM and also show the condition when adding score)
