@@ -99,10 +99,11 @@ code).
 
 Updates
 -------
-<Example update. Delte this and add your own updates after each lab session>
-Week 1: We built the hardware and tested the sensors. The distance sensor we had intended to use didn't work as
-expected (wasn't precise enough at further distances, only seems to work accurately within 5-10cm), so instead
-we've decided to change the project to use a light sensor instead. Had trouble getting the FSM to work (kept
-getting stuck in state 101, took longer to debug than expected), so we may not be able to add the
-high score feature, have updated that in the project description as (optional).
 
+Week 1: We tested the decimal counter we wrote for our timer and score-keeper and it worked perfectly. The .mif file 
+we had intended to use for the initial state didn't work because the depth was too high (32768 compared to 19200) so 
+we spent a while trying to find other ways to convert a .bmp file to a .mif file. We couldn't find any so we had to 
+write the .mif file manually and kept testing it using the VGA monitor. We couldn't get the reset module we wrote to 
+work so instead of resetting all the boxes to white again, we decided to just change the colour of the boxes when a 
+new game starts. We were also finding it difficult to draw a 3x3 box continuously despite having the code for it, so 
+we decided to just change the colour of the middle of a box when the player gets to that box.   
