@@ -148,7 +148,7 @@ module reset(
 		case(curr)
 			D0: begin // return left side of player one to original state
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0000_0011; // 3
+				y <= 8'b0000_0100; // 4
 			end
 			D1: begin
 				x <= 8'b0010_0110; // 38
@@ -276,7 +276,7 @@ module reset(
 			end
 						D32: begin // return left side of player two to original state
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0000_0011; // 3
+				y <= 8'b0000_0100; // 4
 			end
 			D33: begin
 				x <= 8'b0111_0110; // 118
