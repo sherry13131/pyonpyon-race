@@ -87,7 +87,7 @@ module control(
     input go1,      //left key
     input go2,      //right key
     input start,    //start - when the game start with SW[0] on
-    input pressed,  //player pressed
+    input [1:0]pressed,  //player pressed, left key:2'b1, right key:2'b2
     input correct_box,   //the position of the next box
     input add_box,      //signal to add box when the right box is clicked
     input another_player_end,  // check whether the another player finish the game or not
@@ -105,8 +105,8 @@ module control(
     
     localparam  START           = 2'd0,
                 S_LOAD_CLICK    = 2'd1,
-                S_LOAD_CLICK_WAIT_1   = 2'd2,
-                S_LOAD_CLICK_WAIT_2   = 2'd3,
+                S_CLICKED_1_WAIT   = 2'd2,
+                S_CLICKED_2_WAIT   = 2'd3,
                 S_CHECK_ANS_1       = 2'd4,
                 S_CHECK_ANS_2       = 2'd5,
                 S_CHECK_ANS_1_UPDATE = 2'd6
@@ -124,40 +124,43 @@ module control(
                 START: next_state = start ? S_LOAD_CLICK : START; // start the game and enter the state loop
                 S_LOAD_CLICK: // Loop in current state until value is input
                 begin
-                    if (go1)
-                        next_state = S_LOAD_CLICK_WAIT_1;
-                    else if (go2)
-                        next_state = S_LOAD_CLICK_WAIT_2;
+
+                    if (another_player_end)     // if another player reach the top, end
+                        next_state = END;
+                    else if (go1 == 1'b1 && pressed == 2'b0)
+                        next_state = S_CLICKED_1_WAIT;
+                    else if (go2 == 1'b1 && pressed == 2'b0)
+                        next_state = S_CLICKED_2_WAIT;
                     else
                         next_state = S_LOAD_CLICK;
                 end
-                S_LOAD_CLICK_WAIT_1: // Loop in current state until go signal goes low (for left)
+                S_CLICKED_1_WAIT: // Loop in current state until go signal goes low (for left)
                 begin
                     if (another_player_end)     // if another player reach the top, end
                         next_state = END;
-                    else if (go1)
-                        next_state = S_LOAD_CLICK_WAIT_1;
+                    else if (go1 == 1'b1)
+                        next_state = S_CLICKED_1_WAIT;
                     else
-                        next_state = S_CHECK_ANS_1;
+                        next_state = PLOT;
                 end
-                S_LOAD_CLICK_WAIT_2: // Loop in current state until go signal goes low (for right)
+                S_CLICKED_2_WAIT: // Loop in current state until go signal goes low (for right)
                 begin
                     if (another_player_end)     // if another player reach the top, end
                         next_state = END;
                     else if (go1)
-                        next_state = S_LOAD_CLICK_WAIT_2;
+                        next_state = S_CLICKED_2_WAIT;
                     else
-                        next_state = S_CHECK_ANS_2;
+                        next_state = PLOT;
 
-                S_CHECK_ANS_1: next_state = correct_box ? S_LOAD_CLICK : S_CHECK_ANS_1_UPDATE; // if correct_box is 0 (left key) then update the signal
+                // S_CHECK_ANS_1: next_state = correct_box ? S_LOAD_CLICK : S_CHECK_ANS_1_UPDATE; // if correct_box is 0 (left key) then update the signal
 
-                S_CHECK_ANS_2: next_state = correct_box ? S_CHECK_ANS_2_UPDATE : S_LOAD_CLICK; // if correct_box is 1 (right key) then update the signal
+                //S_CHECK_ANS_2: next_state = correct_box ? S_CHECK_ANS_2_UPDATE : S_LOAD_CLICK; // if correct_box is 1 (right key) then update the signal
 
-                S_CHECK_ANS_1_UPDATE: next_state = PLOT;
-                S_CHECK_ANS_2_UPDATE: next_state = PLOT;
+                //S_CHECK_ANS_1_UPDATE: next_state = PLOT;
+                //S_CHECK_ANS_2_UPDATE: next_state = PLOT;
 
                 PLOT : next_state = S_LOAD_CLICK; // might have to use this ->ADD_BOX_CLICKED;
-                ADD_BOX_CLICKED : next_state = (total == "total#OfBoxes") ? END : S_LOAD_CLICK // state to the END when the player reach the top.
+                //ADD_BOX_CLICKED : next_state = (total == "total#OfBoxes") ? END : S_LOAD_CLICK // state to the END when the player reach the top.
 
                 END: next_state = RESTART_WAIT;
                 RESTART_WAIT = next_state = resetn ? RESTART_WAIT : RESTART;
@@ -176,6 +179,7 @@ module control(
         pressed = 1'b0;
         correct = 1'b0;
         add_box = 1'b0;
+        plot = 1'b0;
 
 
         case (current_state)
@@ -183,13 +187,15 @@ module control(
                 begin
                     resetn = 1'b1;
                 end
-            S_LOAD_CLICK:
+            S_CLICKED_1_WAIT:
+                pressed = 2'b1;
+            S_CLICKED_2_WAIT:
+                pressed = 2'b2;
+
+            /* S_CHECK_ANS_1_UPDATE: begin //if the box is correct, match the key player clicked (
+            left)
             begin
-              pressed = 1'b1;
-            end
-            S_CHECK_ANS_1_UPDATE: begin //if the box is correct, match the key player clicked (left)
-            begin
-                correct = 1'b1;
+                correct = 1'b1; 
 
 /*  might be putting somewhere but not here
                 if (!correct_box)
@@ -226,13 +232,12 @@ module control(
                     counter0 = counter0 + 1;
                 end */
 
-            end
+            end */
 
             PLOT: //draw the dot of the coorrdinate
                 plot = 1'b1;
 
-            ADD_BOX_CLICKED:
-                add_box = 1'b1;
+
         // default:    // don't need default since we already made sure all of our outputs were assigned a value at the start of the always block
         endcase
     end // enable_signals
@@ -255,34 +260,63 @@ module datapath(
     input start,
     input [3:0] counter0,
     input [3:0] counter1,
-    input pressed,
-    input correct,
+    input [1:0] pressed,
+    input correct_box,
     //input num_correct_box,
 
     output finish,
     output reg [3:0] counter0,
     output reg [3:0] counter1,
-    output 
     );
     
+    localparam
+    // colour and coordinates parameters
+
+
     // input registers
     reg [3:0] a;
     reg [3:0] b;
     
+    initial increased_score = 0;
+
     // Registers a, set 0 if reset, else set to data_in(counter) then output
     always@(posedge clk) begin
-        if(!resetn) begin
-            a <= 4'b0;
-            b <= 4'b0;
-            data_result_0 <= 4'b0;
-            data_result_1 <= 4'b0;
-        end
-        else
-            if(ld_a)
-                a <= data_in_0;
-                b <= data_in_1;
-                data_result_0 <= a;
-                data_result_1 <= b;
-    end
+        // when left key is pressed
+        if (pressed == 2'b1)
+            begin
+                if (correct_box == 1'b0 && increased_score == 1'b0)
+                    begin
+                        if (counter0 == 1'd9) // if first digit counter is 9
+                        begin
+                            counter0 <= 0
+                            if (counter1 == 1'd9) // if second digit counter is 9
+                                counter1 <= 0
+                            else
+                                counter1 <= counter1 + 1;
+                        end
+                        else
+                            counter0 = counter0 + 1;
+                        increased_score = 1'b1;
+                    end
+
+            end
+        // when right key is pressed
+        else if (pressed == 2'b2)
+            begin
+                if (correct_box == 1'b1 && increased_score == 1'b0)
+                    begin
+                        if (counter0 == 1'd9) // if first digit counter is 9
+                        begin
+                            counter0 <= 0
+                            if (counter1 == 1'd9) // if second digit counter is 9
+                                counter1 <= 0
+                            else
+                                counter1 <= counter1 + 1;
+                        end
+                        else
+                            counter0 = counter0 + 1;
+                        increased_score = 1'b1;
+                    end
+            end
     
 endmodule
