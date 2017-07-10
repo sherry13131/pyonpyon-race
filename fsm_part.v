@@ -108,13 +108,13 @@ module datapath(
         .score(scoreone),
         .finish(finish));
 
-    player p1( // player two module
+    player p2( // player two module
         .clk(clk),
         .resetn(resetn),
         .enable(enable),
         .left(lefttwo),
         .right(righttwo),
-        .player(1'b0),
+        .player(1'b1),
         .x(x),
         .y(y),
         .colour(colour),
