@@ -60,44 +60,21 @@ module control(
     
     localparam  START           = 2'd0,
                 S_LOAD_CLICK    = 2'd1,
-                RESTART_WAIT    = 2'd3,
-                RESTART         = 2'd4;
+                RESTART_WAIT    = 2'd2,
+                RESTART         = 2'd3;
     
     // state table FSM
     always@(*)
     begin: state_table 
             case (current_state)
                 START: next_state = start ? S_LOAD_CLICK : START; // start the game and enter the state loop
-                S_LOAD_CLICK: // Loop in current state until value is input
-                begin
-
-                    if (finish)     // if another player reach the top, end
-                        next_state = RESTART_WAIT;
-                    else
-                        next_state = S_LOAD_CLICK;
-                end
-
+                S_LOAD_CLICK: next_state = finish ? RESTART : S_LOAD_CLICK // Loop in current state until value is input
                 RESTART_WAIT = next_state = resetn ? RESTART_WAIT : RESTART;
-                RESTART = next_state = start ? RESTART : S_LOAD_CLICK;
-            default:     next_state = S_LOAD_CLICK;
+                RESTART = next_state = start ? S_LOAD_CLICK : START;
+            default:     next_state = START;
         endcase
     end // state_table
-   
 
-    // Output logic aka all of our datapath control signals
-    always @(*)
-    begin: enable_signals
-        // By default make all our signals 0
-        resetn = 1'b0;
-        start = 1'b0
-
-        case (current_state)
-            START:
-                resetn = 1'b1;
-        // default:    // don't need default since we already made sure all of our outputs were assigned a value at the start of the always block
-        endcase
-    end // enable_signals
-   
     // current_state registers
     always@(posedge clk)
     begin: state_FFs
@@ -119,6 +96,7 @@ module datapath(
     input leftone, rightone,
     input lefttwo, righttwo,
     output reset_en,
+    output finish,
     output reg [7:0] x,
     output reg [6:0] y,
     output reg [2:0] colour,
@@ -160,7 +138,6 @@ module player(
     output reg finish
     );
 
-    initial finish = 1'b0;
     reg [4:0] state
 
     always@(posedge clk) begin
