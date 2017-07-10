@@ -74,7 +74,7 @@ module control(
             default:     next_state = START;
         endcase
     end // state_table
-   
+
     // current_state registers
     always@(posedge clk)
     begin: state_FFs

@@ -20,7 +20,7 @@ try drawing the skeleton code, and FSM
 	the FSM state table too
 figure out how to show the sqaure on specific places
 
-on the practical(6 July):
+on the practical (6 July):
 try the VGA code
 	modify and do some changes on the code.
 	know well about the code
@@ -29,7 +29,7 @@ check the code for the timer and the HEX
 	make sure it's working
 add the reset feature
 
-before the 13 July:
+before 13 July:
 fix the problem we saw on 6 July practical
 if it is avaliable, add feature -> for one player, by using a switch
 if it is avaliable, add feature -> save high score time
@@ -38,13 +38,13 @@ if it is avaliable, add feature -> figure out how to do randomisation
 	simple case: do randomization every 2 boxes when reset is on
 	more complicate case: randomize the boxes depends on the most bottom box.
 
-on the practica(13 July) :
+on the practical (13 July) :
 check the code
 debug
 combine any new features and check the code again
 check extreme case on score and timer
 
-before the 20 July:
+before 20 July:
 fix the problem we saw on 13 July practical
 the game must be working.!!!! otherwise, just focus on the problems we got. (not adding any features)
 if it is avaliable, add features.

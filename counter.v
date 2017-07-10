@@ -1,5 +1,5 @@
-module lab_4(SW, HEX0, HEX1, CLOCK_50);
-  input [9:0] SW; // use SW[2] as enable(start the game), and SW[3] as reset_n (reset the game)
+module pyonpyon(SW, HEX0, HEX1, CLOCK_50);
+  input [9:0] SW; // use SW[0] as enable(start the game), and SW[1] as reset_n (reset the game)
   input CLOCK_50; // internal DE2 clock 
   output [6:0] HEX0; // Display  value of Q1[0:3] on HEX0
   output [6:0] HEX1; // Display  value of Q2[0:3] on HEX1
@@ -8,19 +8,19 @@ module lab_4(SW, HEX0, HEX1, CLOCK_50);
   wire [3:0]Q2; // dec value obtained from counter for second digit
 
   counter cnt(
-    .enable(SW[2]),
+    .enable(SW[0]),
     .clk_default(CLOCK_50),
-    .reset_n(SW[3]), 
+    .reset_n(SW[1]), 
     .hex_out_one(Q1),
     .hex_out_two(Q2)
   );
 
-  hex_decoder_always h0(
+  dec_decoder h0(
     .dec_digit(Q1[3:0]),
     .segments(HEX0)
   );
   
-  hex_decoder_always h1(
+  dec_decoder h1(
     .dec_digit(Q2[3:0]),
     .segments(HEX1)
   );
@@ -48,6 +48,7 @@ module counter(enable, clk_default, reset_n, hex_out_one, hex_out_two);
 
   // give enable value whenever the rd_1hz_out is countdown to 0
   always @(*)
+  begin
     display_counter_enable = (rd_1hz_out == 28'b0) ? 1 : 0;    // 1 Hz, approx 1 second
   end
   
@@ -56,7 +57,7 @@ module counter(enable, clk_default, reset_n, hex_out_one, hex_out_two);
     .enable(display_counter_enable),
     .reset_n(reset_n),
     .clock(clk_default),
-    .q0(hex_out_one)
+    .q0(hex_out_one),
     .q1(hex_out_two)
   );  
   
@@ -104,38 +105,16 @@ module display_counter(enable, reset_n, clock, q0, q1);
         if (q1 == 4'b1001) // if the second digit is 9, go back to zero (99->00)
           q1 <= 0;
         else
-          q1 <= q1 + 1'b1 // else just add one to the second digit (19->20)
+          q1 <= q1 + 1'b1; // else just add one to the second digit (19->20)
       end
       else
         q0 <= q0 + 1'b1; // plus one if q0 (first digit is not 9)
-    // else // when reset_n is 1 and enable is 0
-    // do what? nothing?
     end
   end
 
 endmodule
 
-
-
-
-module dec_decoder(A,B,C,D,H);   // not sure is DCBA or ABCD
-    input A;
-    input B;
-    input C;
-    input D;
-    output [6:0]H;
-
-    assign H[0] = (~D & ~C & ~B & A) | (C & ~B & ~A);
-    assign H[1] = (C & ~B & A) | (C & B & ~A);
-    assign H[2] = (~C & B & ~A);
-    assign H[3] = (~D & ~C & ~B & A) | (C & ~B & ~A) | (C & B & A);
-    assign H[4] = (C & ~B) | A;
-    assign H[5] = (~D & ~C & A) | (~D & ~C & B) | (B & A);
-    assign H[6] = (~D & ~C & ~B) | (C & B & A);
-
-endmodule
-
-module dec_decoder_always(dec_digit, segments);
+module dec_decoder(dec_digit, segments);
    input [3:0] dec_digit;
    output reg [6:0] segments;
    always @(*)
@@ -153,4 +132,3 @@ module dec_decoder_always(dec_digit, segments);
        default: segments = 7'h7f;
      endcase
 endmodule
-
