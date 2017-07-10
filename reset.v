@@ -71,7 +71,10 @@ module reset(
 				D60 = 7'd60;
 				D61 = 7'd61;
 				D62 = 7'd62;
-				WAIT = 7'd63;
+				D63 = 7'd63;
+				D64 = 7'd64;
+				D65 = 7'd65;
+				WAIT = 7'd66;
 
 	always@(posedge clk) begin: state_table
 		case(curr)
@@ -138,7 +141,10 @@ module reset(
 			D59: next = D60;
 			D60: next = D61;
 			D61: next = D62;
-			D62: next = WAIT;
+			D62: next = D63;
+			D63: next = D64;
+			D64: next = D65;
+			D65: next = WAIT;
 			default: next = WAIT;
 		endcase
 	end
@@ -184,221 +190,229 @@ module reset(
 			end
 			D9: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0100_0011; // 67
+				y <= 8'b0011_1101; // 61
 			end
 			D10: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0100_1100; // 76
+				y <= 8'b0100_0011; // 67
 			end
 			D11: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0101_0010; // 82
+				y <= 8'b0100_1100; // 76
 			end
 			D12: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0101_0101; // 85
+				y <= 8'b0101_0010; // 82
 			end
 			D13: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0101_1000; // 88
+				y <= 8'b0101_0101; // 85
 			end
 			D14: begin
 				x <= 8'b0010_0110; // 38
-				y <= 8'b0101_1110; // 94
+				y <= 8'b0101_1000; // 88
 			end
 			D15: begin
 				x <= 8'b0010_0110; // 38
+				y <= 8'b0101_1110; // 94
+			end
+			D16: begin
+				x <= 8'b0010_0110; // 38
 				y <= 8'b0110_0001; // 97
 			end
-			D16: begin // return right side of player one to original state
+			D17: begin // return right side of player one to original state
 				x <= 8'b0010_1011; // 43
 				y <= 8'b0000_0111; // 7
-			end
-			D17: begin
-				x <= 8'b0010_1011; // 43
-				y <= 8'b0000_1010; // 10
 			end
 			D18: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0010_0000; // 16
+				y <= 8'b0000_1010; // 10
 			end
 			D19: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0001_1100; // 28
+				y <= 8'b0010_0000; // 16
 			end
 			D20: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0010_0010; // 34
+				y <= 8'b0001_1100; // 28
 			end
 			D21: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0010_1000; // 40
+				y <= 8'b0010_0010; // 34
 			end
 			D22: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0010_1011; // 43
+				y <= 8'b0010_1000; // 40
 			end
 			D23: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0010_1110; // 46
+				y <= 8'b0010_1011; // 43
 			end
 			D24: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0011_0100; // 52
+				y <= 8'b0010_1110; // 46
 			end
 			D25: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0011_0111; // 55
+				y <= 8'b0011_0100; // 52
 			end
 			D26: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0100_0000; // 64
+				y <= 8'b0011_0111; // 55
 			end
 			D27: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0100_0110; // 70
+				y <= 8'b0100_0000; // 64
 			end
 			D28: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0100_1001; // 73
+				y <= 8'b0100_0110; // 70
 			end
 			D29: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0100_1111; // 79
+				y <= 8'b0100_1001; // 73
 			end
 			D30: begin
 				x <= 8'b0010_1011; // 43
-				y <= 8'b0101_1011; // 91
+				y <= 8'b0100_1111; // 79
 			end
 			D31: begin
 				x <= 8'b0010_1011; // 43
+				y <= 8'b0101_1011; // 91
+			end
+			D32: begin
+				x <= 8'b0010_1011; // 43
 				y <= 8'b0110_0100; // 100
 			end
-						D32: begin // return left side of player two to original state
+			D33: begin // return left side of player two to original state
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0000_0100; // 4
 			end
-			D33: begin
+			D34: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0000_1101; // 13
 			end
-			D34: begin
+			D35: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0001_0011; // 19
 			end
-			D35: begin
+			D36: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0001_0110; // 22
 			end
-			D36: begin
+			D37: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0001_1001; // 25
 			end
-			D37: begin
+			D38: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0001_1111; // 31
 			end
-			D38: begin
+			D39: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0010_0101; // 37
 			end
-			D39: begin
+			D40: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0011_0001; // 49
 			end
-			D40: begin
+			D41: begin
 				x <= 8'b0111_0110; // 118
 				y <= 8'b0011_1010; // 58
 			end
-			D41: begin
-				x <= 8'b0111_0110; // 118
-				y <= 8'b0100_0011; // 67
-			end
 			D42: begin
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0100_1100; // 76
+				y <= 8'b0011_1101; // 61
 			end
 			D43: begin
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0101_0010; // 82
+				y <= 8'b0100_0011; // 67
 			end
 			D44: begin
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0101_0101; // 85
+				y <= 8'b0100_1100; // 76
 			end
 			D45: begin
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0101_1000; // 88
+				y <= 8'b0101_0010; // 82
 			end
 			D46: begin
 				x <= 8'b0111_0110; // 118
-				y <= 8'b0101_1110; // 94
+				y <= 8'b0101_0101; // 85
 			end
 			D47: begin
 				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_1000; // 88
+			end
+			D48: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_1110; // 94
+			end
+			D49: begin
+				x <= 8'b0111_0110; // 118
 				y <= 8'b0110_0001; // 97
 			end
-			D48: begin // return right side of player two to original state
+			D50: begin // return right side of player two to original state
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0000_0111; // 7
 			end
-			D49: begin
+			D51: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0000_1010; // 10
 			end
-			D50: begin
+			D52: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0010_0000; // 16
 			end
-			D51: begin
+			D53: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0001_1100; // 28
 			end
-			D52: begin
+			D54: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0010_0010; // 34
 			end
-			D53: begin
+			D55: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0010_1000; // 40
 			end
-			D54: begin
+			D56: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0010_1011; // 43
 			end
-			D55: begin
+			D57: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0010_1110; // 46
 			end
-			D56: begin
+			D58: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0011_0100; // 52
 			end
-			D57: begin
+			D59: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0011_0111; // 55
 			end
-			D58: begin
+			D60: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0100_0000; // 64
 			end
-			D59: begin
+			D61: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0100_0110; // 70
 			end
-			D60: begin
+			D62: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0100_1001; // 73
 			end
-			D61: begin
+			D63: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0100_1111; // 79
 			end
-			D62: begin
+			D64: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0101_1011; // 91
 			end
-			D63: begin
+			D65: begin
 				x <= 8'b0111_1011; // 123
 				y <= 8'b0110_0100; // 100
 			end
