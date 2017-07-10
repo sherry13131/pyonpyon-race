@@ -43,11 +43,6 @@ module score_adder(SW, KEY, CLOCK_50, HEX4, HEX5);
 
 endmodule
 
-
-
-
-
-
 module control(
     // --- signals ---
     input clk,
@@ -67,21 +62,18 @@ module control(
     always@(*)
     begin: state_table 
             case (current_state)
-                START: next_state = start ? S_LOAD_CLICK : START; // start the game and enter the state loop
-                S_LOAD_CLICK: next_state = finish ? RESTART : S_LOAD_CLICK // Loop in current state until value is input
-                RESTART_WAIT = next_state = resetn ? RESTART_WAIT : RESTART;
-                RESTART = next_state = start ? S_LOAD_CLICK : START;
-            default:     next_state = START;
+                START: next_state = (start&&~resetn) ? S_LOAD_CLICK : START; // start the game if not in reset and enter the state loop
+                S_LOAD_CLICK: next_state = finish ? RESTART_WAIT : S_LOAD_CLICK // loop in current state until game finishes
+                RESTART_WAIT: next_state = resetn ? START : RESTART_WAIT; // stay until player resets game
+            default: next_state = START;
         endcase
     end // state_table
 
     // current_state registers
     always@(posedge clk)
     begin: state_FFs
-        if(!start)
-            current_state <= START;
-        else
-            current_state <= next_state;
+        if(!start) current_state <= START; // if start switch is down then start from the beginning
+        else current_state <= next_state; // go to next state
     end // state_FFS
 endmodule
 
@@ -119,7 +111,7 @@ module datapath(
         .finish)
 
     always@(posedge clk) begin
-        if (resetn) reset_en <= 1'b1;
+        if (resetn) reset_en <= 1'b1; // send reset signal if user resets
         else reset_en <= 1'b0;
     end
 
