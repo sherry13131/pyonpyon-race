@@ -3,8 +3,8 @@
 module pyonpyonrace
 	(
 		CLOCK_50,						
-        KEY,
-        SW,
+      KEY,
+      SW,
 		VGA_CLK,   						
 		VGA_HS,							
 		VGA_VS,						
@@ -34,6 +34,10 @@ module pyonpyonrace
 	wire enable; // game starts
 	assign enable = SW[0];
 	
+	wire finish;
+	wire [7:0] timer;
+	wire [7:0] scoreone, scoretwo;
+	
 	wire [2:0] colour;
 	wire [7:0] x;
 	wire [6:0] y;
@@ -47,7 +51,7 @@ module pyonpyonrace
 	assign righttwo = ~KEY[0];
 
 	vga_adapter VGA(
-			.resetn(resetn),
+			.resetn(1'b1),
 			.clock(CLOCK_50),
 			.colour(colour),
 			.x(x),
@@ -65,89 +69,902 @@ module pyonpyonrace
 		defparam VGA.MONOCHROME = "FALSE";
 		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
 		defparam VGA.BACKGROUND_IMAGE = "background.mif";
+		
+	control c(
+		.clk(CLOCK_50),
+		.resetn(resetn),
+		.start(enable),
+		.finish(finish)
+		);
+		
+	datapath d(
+        .clk(CLOCK_50),
+        .resetn(resetn),
+        .enable(enable),
+        .leftone(~KEY[3]), 
+        .rightone(~KEY[2]),
+        .lefttwo(~KEY[1]),
+        .righttwo(~KEY[0]),
+        .reset_en(1'b0),
+        .finish(finish),
+        .x(x),
+        .y(y),
+        .colour(colour),
+        .timer(timer),
+        .scoreone(scoreone),
+        .scoretwo(scoretwo)
+    );
+	
+	
 			
+endmodule
+
+// control
+module control(
+    // --- signals ---
+    input clk,
+    input resetn,   //reset
+    input start,    //start - when the game start with SW[0] on
+    input finish       // signal to end the game (getting from datapath)
+    );
+
+    reg current_state, next_state; 
+    
+    localparam  START           = 2'd0,
+                S_LOAD_CLICK    = 2'd1,
+                RESTART_WAIT    = 2'd2,
+                RESTART         = 2'd3;
+    
+    // state table FSM
+    always@(*)
+    begin: state_table 
+            case (current_state)
+                START: next_state = (start&&~resetn) ? S_LOAD_CLICK : START; // start the game if not in reset and enter the state loop
+                S_LOAD_CLICK: next_state = finish ? RESTART_WAIT : S_LOAD_CLICK; // loop in current state until game finishes
+                RESTART_WAIT: next_state = resetn ? START : RESTART_WAIT; // stay until player resets game
+            default: next_state = START;
+        endcase
+    end // state_table
+
+    // current_state registers
+    always@(posedge clk)
+    begin: state_FFs
+        if(!start) current_state <= START; // if start switch is down then start from the beginning
+        else current_state <= next_state; // go to next state
+    end // state_FFS
 endmodule
 
 // datapath
 module datapath(
-	input clk,
-	input resetn,
-	input enable,
-	input leftone, rightone,
-	input lefttwo, righttwo,
-	output reset_en,
-	output reg [7:0] x,
-	output reg [6:0] y,
-	output reg [2:0] colour,
-	output reg [7:0] time,
-	output reg [7:0] scoreone,
-	output reg [7:0] scoretwo
-	);
+    input clk,
+    input resetn,
+    input enable,
+    input leftone, rightone,
+    input lefttwo, righttwo,
+    output reset_en,
+    output finish,
+    output reg [7:0] x,
+    output reg [6:0] y,
+    output reg [2:0] colour,
+    output reg [7:0] timer,
+    output reg [7:0] scoreone,
+    output reg [7:0] scoretwo
+    );
 
-	player p1( // to fill in
-		.clk
-		.resetn
-		.enable
-		.left
-		.right
-		.end
-		.x
-		.y
-		.colour
-		.score)
+    player p1( // player one module
+        .clk(clk),
+        .resetn(resetn),
+        .enable(enable),
+        .left(leftone),
+        .right(rightone),
+        .playernumber(1'b0),
+        .x(x),
+        .y(y),
+        .colour(colour),
+        .score(scoreone),
+        .finish(finish));
 
-	always@(posedge clk) begin
-		if (resetn) reset_en <= 1'b1;
-		else reset_en <= 1'b0;
-	end
+    player p2( // player two module
+        .clk(clk),
+        .resetn(resetn),
+        .enable(enable),
+        .left(lefttwo),
+        .right(righttwo),
+        .playernumber(1'b1),
+        .x(x),
+        .y(y),
+        .colour(colour),
+        .score(scoretwo),
+        .finish(finish));
+
+    always@(posedge clk) begin
+        if (resetn) reset_en <= 1'b1; // send reset signal if user resets
+        else reset_en <= 1'b0;
+    end
 
 endmodule
 
 module player(
-	input clk,
-	input resetn,
-	input enable,
-	input left, right,
-	output end,
-	output reg [7:0] x,
-	output reg [6:0] y,
-	output reg [2:0] colour,
-	output reg [7:0] score
-	);
+    input clk,
+    input resetn,
+    input enable,
+    input left, right,
+    input playernumber,
+    output reg [7:0] x,
+    output reg [6:0] y,
+    output reg [2:0] colour,
+    output reg [7:0] score,
+    output reg finish
+    );
 
-	reg [4:0] state
+    reg [4:0] state;
+    wire [2:0] boxcolour;
+    wire [7:0] leftx;
+    wire [7:0] rightx;
 
-	always@(posedge clk) begin
-		if (resetn) state <= 5'd0; // before game starts
-		else if (enable) begin // check if game started
-			if (state == 5'd0) begin // this is when game first starts
-				if (right) begin
-					state <= 5'd1 // go to next box because correct answer
-					// draw in box
-				end
-				else score <= score + 1'b1 // add to accuracy score because incorrect answer
-			end
-			else if (state == 5'd1) begin
-				if (left) begin
-					state <= 5'd2 // go to next box because correct answer
-					// draw in box
-				end
-				else score <= score + 1'b1 // add to accuracy score because incorrect answer
-			end
-		end
-	end
+    if (playernumber == 1'b0) begin // check if it's player one
+        boxcolour = 3'b100; // box colour is red
+        leftx = 8'b0010_0110; // left boxes' coordinate is 38
+        rightx = 8'b0010_1011; // right boxes' coordinate is 43
+    end
+    else begin // otherwise it's player two
+        boxcolour = 3'b001; // box colour is blue
+        leftx = 8'b0111_0110; // left boxes' coordinate is 118
+        rightx = 8'b0111_1011; // right boxes' coordinate is 123
+    end
+
+    always@(posedge clk) begin
+        colour <= boxcolour;
+    end
+
+    always@(posedge clk) begin
+        if (resetn) state <= 5'd0; // before game starts
+        else if (enable) begin // check if game started
+            if (state == 5'd0) begin // this is when game first starts
+                if (right) begin
+                    state <= 5'd1; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0110_0100; // 100
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd1) begin
+                if (left) begin
+                    state <= 5'd2; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0110_0001; // 97
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd2) begin
+                if (left) begin
+                    state <= 5'd3; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_1110; // 94
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd3) begin
+                if (right) begin
+                    state <= 5'd4; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0101_1011; // 91
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd4) begin
+                if (left) begin
+                    state <= 5'd5; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_1000; // 88
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd5) begin
+                if (left) begin
+                    state <= 5'd6; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_0101; // 85
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd6) begin
+                if (left) begin
+                    state <= 5'd7; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_0010; // 82
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd7) begin
+                if (right) begin
+                    state <= 5'd8; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_1111; // 79
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd8) begin
+                if (left) begin
+                    state <= 5'd9; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0100_1100; // 76
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd9) begin
+                if (right) begin
+                    state <= 5'd10; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_1001; // 73
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd10) begin
+                if (right) begin
+                    state <= 5'd11; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_0110; // 70
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd11) begin
+                if (left) begin
+                    state <= 5'd12; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0100_0011; // 67
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd12) begin
+                if (right) begin
+                    state <= 5'd13; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_0000; // 64
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd13) begin
+                if (left) begin
+                    state <= 5'd14; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_1101; // 61
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd14) begin
+                if (left) begin
+                    state <= 5'd15; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_1010; // 58
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd15) begin
+                if (right) begin
+                    state <= 5'd16; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0011_0111; // 55
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd16) begin
+                if (right) begin
+                    state <= 5'd17; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0011_0100; // 52
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+
+            else if (state == 5'd17) begin
+                if (left) begin
+                    state <= 5'd18; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_0001; // 49
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd18) begin
+                if (right) begin
+                    state <= 5'd19; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1110; // 46
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd19) begin
+                if (right) begin
+                    state <= 5'd20; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1011; // 43
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd20) begin
+                if (right) begin
+                    state <= 5'd21; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1000; // 40
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd21) begin
+                if (left) begin
+                    state <= 5'd22; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0010_0101; // 37
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd22) begin
+                if (right) begin
+                    state <= 5'd23; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_0010; // 34
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd23) begin
+                if (left) begin
+                    state <= 5'd24; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_1111; // 31
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd24) begin
+                if (right) begin
+                    state <= 5'd25; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0001_1100; // 28
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd25) begin
+                if (left) begin
+                    state <= 5'd26; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_1001; // 25
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd26) begin
+                if (left) begin
+                    state <= 5'd27; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_0110; // 22
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd27) begin
+                if (left) begin
+                    state <= 5'd28; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_0011; // 19
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd28) begin
+                if (right) begin
+                    state <= 5'd29; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_0000; // 16
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd29) begin
+                if (left) begin
+                    state <= 5'd30; // go to next box because correct answer
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0000_1101; // 13
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd30) begin
+                if (right) begin
+                    state <= 5'd31; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0000_1010; // 10
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd31) begin
+                if (right) begin
+                    state <= 5'd32; // go to next box because correct answer
+                    // draw in box
+                    x <= rightx;
+                    y <= 8'b0000_0111; // 7
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+            else if (state == 5'd32) begin
+                if (left) begin
+                    // draw in box
+                    x <= leftx;
+                    y <= 8'b0000_0100; // 4
+                    // check the player reach the top
+                    finish <= 1'b1;
+                end
+                else score <= score + 1'b1; // add to accuracy score because incorrect answer
+            end
+        end
+	 end
 
 endmodule
+
+/*module reset(
+	input clk,
+	input reset_en,
+	output reg [7:0] x,
+	output reg [6:0] y,
+	output reg [2:0] colour
+	);
+
+	reg [3:0] curr, next;
+
+	localparam 	D0 = 7'd0,
+				D1 = 7'd1,
+				D2 = 7'd2,
+				D3 = 7'd3,
+				D4 = 7'd4,
+				D5 = 7'd5,
+				D6 = 7'd6,
+				D7 = 7'd7,
+				D8 = 7'd8,
+				D9 = 7'd9,
+				D10 = 7'd10,
+				D11 = 7'd11,
+				D12 = 7'd12,
+				D13 = 7'd13,
+				D14 = 7'd14,
+				D15 = 7'd15,
+				D16 = 7'd16,
+				D17 = 7'd17,
+				D18 = 7'd18,
+				D19 = 7'd19,
+				D20 = 7'd20,
+				D21 = 7'd21,
+				D22 = 7'd22,
+				D23 = 7'd23,
+				D24 = 7'd24,
+				D25 = 7'd25,
+				D26 = 7'd26,
+				D27 = 7'd27,
+				D28 = 7'd28,
+				D29 = 7'd29,
+				D30 = 7'd30,
+				D31 = 7'd31,
+				D32 = 7'd32,
+				D33 = 7'd33,
+				D34 = 7'd34,
+				D35 = 7'd35,
+				D36 = 7'd36,
+				D37 = 7'd37,
+				D38 = 7'd38,
+				D39 = 7'd39,
+				D40 = 7'd40,
+				D41 = 7'd41,
+				D42 = 7'd42,
+				D43 = 7'd43,
+				D44 = 7'd44,
+				D45 = 7'd45,
+				D46 = 7'd46,
+				D47 = 7'd47,
+				D48 = 7'd48,
+				D49 = 7'd49,
+				D50 = 7'd50,
+				D51 = 7'd51,
+				D52 = 7'd52,
+				D53 = 7'd53,
+				D54 = 7'd54,
+				D55 = 7'd55,
+				D56 = 7'd56,
+				D57 = 7'd57,
+				D58 = 7'd58,
+				D59 = 7'd59,
+				D60 = 7'd60,
+				D61 = 7'd61,
+				D62 = 7'd62,
+				D63 = 7'd63,
+				D64 = 7'd64,
+				D65 = 7'd65,
+				WAIT = 7'd66;
+
+	always@(posedge clk) begin: state_table
+		case(curr)
+			WAIT: next = reset_en ? D0 : WAIT; // stay in wait mode until we need to reset the colour of the boxes
+			D0: next = D1;
+			D1: next = D2;
+			D2: next = D3;
+			D3: next = D4;
+			D4: next = D5;
+			D5: next = D6;
+			D6: next = D7;
+			D7: next = D8;
+			D8: next = D9;
+			D9: next = D10;
+			D10: next = D11;
+			D11: next = D12;
+			D12: next = D13;
+			D13: next = D14;
+			D14: next = D15;
+			D15: next = D16;
+			D16: next = D17;
+			D17: next = D18;
+			D18: next = D19;
+			D19: next = D20;
+			D20: next = D21;
+			D21: next = D22;
+			D22: next = D23;
+			D23: next = D24;
+			D24: next = D25;
+			D25: next = D26;
+			D26: next = D27;
+			D27: next = D28;
+			D28: next = D29;
+			D29: next = D30;
+			D30: next = D31;
+			D31: next = D32;
+			D32: next = D33;
+			D33: next = D34;
+			D34: next = D35;
+			D35: next = D36;
+			D36: next = D37;
+			D37: next = D38;
+			D38: next = D39;
+			D39: next = D40;
+			D40: next = D41;
+			D41: next = D42;
+			D42: next = D43;
+			D43: next = D44;
+			D44: next = D45;
+			D45: next = D46;
+			D46: next = D47;
+			D47: next = D48;
+			D48: next = D49;
+			D49: next = D50;
+			D50: next = D51;
+			D51: next = D52;
+			D52: next = D53;
+			D53: next = D54;
+			D54: next = D55;
+			D55: next = D56;
+			D56: next = D57;
+			D57: next = D58;
+			D58: next = D59;
+			D59: next = D60;
+			D60: next = D61;
+			D61: next = D62;
+			D62: next = D63;
+			D63: next = D64;
+			D64: next = D65;
+			D65: next = WAIT;
+			default: next = WAIT;
+		endcase
+	end
+
+	// get the boxes to reset to white
+	always@(*) begin
+		case(curr)
+			D0: begin // return left side of player one to original state
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0000_0100; // 4
+			end
+			D1: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0000_1101; // 13
+			end
+			D2: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0001_0011; // 19
+			end
+			D3: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0001_0110; // 22
+			end
+			D4: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0001_1001; // 25
+			end
+			D5: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0001_1111; // 31
+			end
+			D6: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0010_0101; // 37
+			end
+			D7: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0011_0001; // 49
+			end
+			D8: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0011_1010; // 58
+			end
+			D9: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0011_1101; // 61
+			end
+			D10: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0100_0011; // 67
+			end
+			D11: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0100_1100; // 76
+			end
+			D12: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0101_0010; // 82
+			end
+			D13: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0101_0101; // 85
+			end
+			D14: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0101_1000; // 88
+			end
+			D15: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0101_1110; // 94
+			end
+			D16: begin
+				x <= 8'b0010_0110; // 38
+				y <= 8'b0110_0001; // 97
+			end
+			D17: begin // return right side of player one to original state
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0000_0111; // 7
+			end
+			D18: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0000_1010; // 10
+			end
+			D19: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0010_0000; // 16
+			end
+			D20: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0001_1100; // 28
+			end
+			D21: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0010_0010; // 34
+			end
+			D22: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0010_1000; // 40
+			end
+			D23: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0010_1011; // 43
+			end
+			D24: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0010_1110; // 46
+			end
+			D25: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0011_0100; // 52
+			end
+			D26: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0011_0111; // 55
+			end
+			D27: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0100_0000; // 64
+			end
+			D28: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0100_0110; // 70
+			end
+			D29: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0100_1001; // 73
+			end
+			D30: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0100_1111; // 79
+			end
+			D31: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0101_1011; // 91
+			end
+			D32: begin
+				x <= 8'b0010_1011; // 43
+				y <= 8'b0110_0100; // 100
+			end
+			D33: begin // return left side of player two to original state
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0000_0100; // 4
+			end
+			D34: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0000_1101; // 13
+			end
+			D35: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0001_0011; // 19
+			end
+			D36: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0001_0110; // 22
+			end
+			D37: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0001_1001; // 25
+			end
+			D38: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0001_1111; // 31
+			end
+			D39: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0010_0101; // 37
+			end
+			D40: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0011_0001; // 49
+			end
+			D41: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0011_1010; // 58
+			end
+			D42: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0011_1101; // 61
+			end
+			D43: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0100_0011; // 67
+			end
+			D44: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0100_1100; // 76
+			end
+			D45: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_0010; // 82
+			end
+			D46: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_0101; // 85
+			end
+			D47: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_1000; // 88
+			end
+			D48: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0101_1110; // 94
+			end
+			D49: begin
+				x <= 8'b0111_0110; // 118
+				y <= 8'b0110_0001; // 97
+			end
+			D50: begin // return right side of player two to original state
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0000_0111; // 7
+			end
+			D51: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0000_1010; // 10
+			end
+			D52: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0010_0000; // 16
+			end
+			D53: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0001_1100; // 28
+			end
+			D54: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0010_0010; // 34
+			end
+			D55: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0010_1000; // 40
+			end
+			D56: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0010_1011; // 43
+			end
+			D57: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0010_1110; // 46
+			end
+			D58: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0011_0100; // 52
+			end
+			D59: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0011_0111; // 55
+			end
+			D60: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0100_0000; // 64
+			end
+			D61: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0100_0110; // 70
+			end
+			D62: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0100_1001; // 73
+			end
+			D63: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0100_1111; // 79
+			end
+			D64: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0101_1011; // 91
+			end
+			D65: begin
+				x <= 8'b0111_1011; // 123
+				y <= 8'b0110_0100; // 100
+			end
+		endcase
+	end
+
+	always@(*) begin
+		if (reset_en) colour <= 3'b000;
+	end
+	
+	always@(*) begin
+		if (!reset_en) curr <= WAIT;
+		else curr <= next;
+	end
+
+endmodule*/
 
 // control
 
 // draw 3x3 square
-module draw(
+/*module draw(
 	input clk,
 	input resetn,
 	input go,
 	output reg [1:0] xoff,
-	output reg [1:0] yoff,
+	output reg [1:0] yoff
 	);
 
 	reg [3:0] curr, next;
@@ -225,13 +1042,13 @@ module draw(
 		endcase
 	end
 
-endmodule
+endmodule*/
 
 // reset
 /* right now this just changes the top left corner of the box to white. i'll have to
 figure out a shorter way to reset the board to its original mode rather than writing
 500+ lines of code*/
-module reset(
+/*module reset(
 	input clk,
 	input reset_en,
 	output reg [7:0] x,
@@ -322,4 +1139,4 @@ module reset(
 		end
 	end
 
-endmodule
+endmodule*/
