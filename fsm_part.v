@@ -43,11 +43,7 @@ module score_adder(SW, KEY, CLOCK_50, HEX4, HEX5);
 
 endmodule
 
-
-
-
-
-
+// control
 module control(
     // --- signals ---
     input clk,
@@ -67,26 +63,20 @@ module control(
     always@(*)
     begin: state_table 
             case (current_state)
-                START: next_state = start ? S_LOAD_CLICK : START; // start the game and enter the state loop
-                S_LOAD_CLICK: next_state = finish ? RESTART : S_LOAD_CLICK // Loop in current state until value is input
-                RESTART_WAIT = next_state = resetn ? RESTART_WAIT : RESTART;
-                RESTART = next_state = start ? S_LOAD_CLICK : START;
-            default:     next_state = START;
+                START: next_state = (start&&~resetn) ? S_LOAD_CLICK : START; // start the game if not in reset and enter the state loop
+                S_LOAD_CLICK: next_state = finish ? RESTART_WAIT : S_LOAD_CLICK // loop in current state until game finishes
+                RESTART_WAIT: next_state = resetn ? START : RESTART_WAIT; // stay until player resets game
+            default: next_state = START;
         endcase
     end // state_table
 
     // current_state registers
     always@(posedge clk)
     begin: state_FFs
-        if(!start)
-            current_state <= START;
-        else
-            current_state <= next_state;
+        if(!start) current_state <= START; // if start switch is down then start from the beginning
+        else current_state <= next_state; // go to next state
     end // state_FFS
 endmodule
-
-
-
 
 // datapath
 module datapath(
@@ -105,21 +95,34 @@ module datapath(
     output reg [7:0] scoretwo
     );
 
-    player p1( // to fill in
-        .clk
-        .resetn
-        .enable
-        .left
-        .right
-        .end
-        .x
-        .y
-        .colour
-        .score
-        .finish)
+    player p1( // player one module
+        .clk(clk),
+        .resetn(resetn),
+        .enable(enable),
+        .left(leftone),
+        .right(rightone),
+        .player(1'b0),
+        .x(x),
+        .y(y),
+        .colour(colour),
+        .score(scoreone),
+        .finish(finish));
+
+    player p2( // player two module
+        .clk(clk),
+        .resetn(resetn),
+        .enable(enable),
+        .left(lefttwo),
+        .right(righttwo),
+        .player(1'b1),
+        .x(x),
+        .y(y),
+        .colour(colour),
+        .score(scoretwo),
+        .finish(finish));
 
     always@(posedge clk) begin
-        if (resetn) reset_en <= 1'b1;
+        if (resetn) reset_en <= 1'b1; // send reset signal if user resets
         else reset_en <= 1'b0;
     end
 
@@ -130,7 +133,7 @@ module player(
     input resetn,
     input enable,
     input left, right,
-    output end,
+    input player,
     output reg [7:0] x,
     output reg [6:0] y,
     output reg [2:0] colour,
@@ -138,7 +141,25 @@ module player(
     output reg finish
     );
 
-    reg [4:0] state
+    reg [4:0] state;
+    wire [2:0] boxcolour;
+    wire [7:0] leftx;
+    wire [7:0] rightx;
+
+    if (player == 1'b0) begin // check if it's player one
+        boxcolour = 3'b100; // box colour is red
+        leftx = 8'b0010_0110; // left boxes' coordinate is 38
+        rightx = 8'b0010_1011; // right boxes' coordinate is 43
+    end
+    else begin // otherwise it's player two
+        boxcolour = 3'b001; // box colour is blue
+        leftx = 8'b0111_0110; // left boxes' coordinate is 118
+        rightx = 8'b0111_1011; // right boxes' coordinate is 123
+    end
+
+    always@(posedge clk) begin
+        colour <= boxcolour;
+    end
 
     always@(posedge clk) begin
         if (resetn) state <= 5'd0; // before game starts
@@ -147,6 +168,8 @@ module player(
                 if (right) begin
                     state <= 5'd1 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0110_0100; // 100
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -154,6 +177,8 @@ module player(
                 if (left) begin
                     state <= 5'd2 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0110_0001; // 97
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -161,6 +186,8 @@ module player(
                 if (left) begin
                     state <= 5'd3 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_1110; // 94
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -168,6 +195,8 @@ module player(
                 if (right) begin
                     state <= 5'd4 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0101_1011; // 91
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -175,6 +204,8 @@ module player(
                 if (left) begin
                     state <= 5'd5 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_1000; // 88
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -182,6 +213,8 @@ module player(
                 if (left) begin
                     state <= 5'd6 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_0101; // 85
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -189,6 +222,8 @@ module player(
                 if (left) begin
                     state <= 5'd7 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0101_0010; // 82
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -196,6 +231,8 @@ module player(
                 if (right) begin
                     state <= 5'd8 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_1111; // 79
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -203,6 +240,8 @@ module player(
                 if (left) begin
                     state <= 5'd9 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0100_1100; // 76
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -210,6 +249,8 @@ module player(
                 if (right) begin
                     state <= 5'd10 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_1001; // 73
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -217,6 +258,8 @@ module player(
                 if (right) begin
                     state <= 5'd11 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_0110; // 70
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -224,6 +267,8 @@ module player(
                 if (left) begin
                     state <= 5'd12 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0100_0011; // 67
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -231,6 +276,8 @@ module player(
                 if (right) begin
                     state <= 5'd13 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0100_0000; // 64
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -238,6 +285,8 @@ module player(
                 if (left) begin
                     state <= 5'd14 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_1101; // 61
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -245,6 +294,8 @@ module player(
                 if (left) begin
                     state <= 5'd15 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_1010; // 58
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -252,6 +303,8 @@ module player(
                 if (right) begin
                     state <= 5'd16 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0011_0111; // 55
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -259,6 +312,8 @@ module player(
                 if (right) begin
                     state <= 5'd17 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0011_0100; // 52
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -267,6 +322,8 @@ module player(
                 if (left) begin
                     state <= 5'd18 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0011_0001; // 49
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -274,6 +331,8 @@ module player(
                 if (right) begin
                     state <= 5'd19 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1110; // 46
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -281,6 +340,8 @@ module player(
                 if (right) begin
                     state <= 5'd20 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1011; // 43
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -288,6 +349,8 @@ module player(
                 if (right) begin
                     state <= 5'd21 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_1000; // 40
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -295,6 +358,8 @@ module player(
                 if (left) begin
                     state <= 5'd22 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0010_0101; // 37
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -302,6 +367,8 @@ module player(
                 if (right) begin
                     state <= 5'd23 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_0010; // 34
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -309,6 +376,8 @@ module player(
                 if (left) begin
                     state <= 5'd24 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_1111; // 31
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -316,6 +385,8 @@ module player(
                 if (right) begin
                     state <= 5'd25 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0001_1100; // 28
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -323,6 +394,8 @@ module player(
                 if (left) begin
                     state <= 5'd26 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_1001; // 25
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -330,6 +403,8 @@ module player(
                 if (left) begin
                     state <= 5'd27 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_0110; // 22
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -337,6 +412,8 @@ module player(
                 if (left) begin
                     state <= 5'd28 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0001_0011; // 19
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -344,6 +421,8 @@ module player(
                 if (right) begin
                     state <= 5'd29 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0010_0000; // 16
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -351,6 +430,8 @@ module player(
                 if (left) begin
                     state <= 5'd30 // go to next box because correct answer
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0000_1101; // 13
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -358,6 +439,8 @@ module player(
                 if (right) begin
                     state <= 5'd31 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0000_1010; // 10
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
@@ -365,12 +448,16 @@ module player(
                 if (right) begin
                     state <= 5'd32 // go to next box because correct answer
                     // draw in box
+                    x <= rightx;
+                    y <= 8'b0000_0111; // 7
                 end
                 else score <= score + 1'b1 // add to accuracy score because incorrect answer
             end
             else if (state == 5'd32) begin
                 if (left) begin
                     // draw in box
+                    x <= leftx;
+                    y <= 8'b0000_0100; // 4
                     // check the player reach the top
                     finish <= 1'b1;
                 end
