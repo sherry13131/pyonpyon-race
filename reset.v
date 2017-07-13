@@ -6,7 +6,7 @@ module reset(
 	output reg [2:0] colour
 	);
 
-	reg [3:0] curr, next;
+	reg [6:0] curr, next;
 
 	localparam 	D0 = 7'd0;
 				D1 = 7'd1;
@@ -144,7 +144,8 @@ module reset(
 			D62: next = D63;
 			D63: next = D64;
 			D64: next = D65;
-			D65: next = WAIT;
+			D65: next = WAIT_RESET;
+			WAIT_RESET: next = reset_en ? WAIT_RESET : WAIT; // stay here so that it doesn't keep cycling
 			default: next = WAIT;
 		endcase
 	end
@@ -417,9 +418,12 @@ module reset(
 				y <= 8'b0110_0100; // 100
 			end
 
-
 	always@(*) begin
-		if (reset_en) colour <= 3'b111;
+		if (!reset_en) curr <= WAIT; // stay in wait if reset is off
+		else begin
+			curr <= next; // otherwise go to next state
+			colour <= 3'b111; // colour of reset box
+		end
 	end
 
 endmodule
