@@ -8,23 +8,23 @@ module reset(
 
 	reg [4:0] curr, next;
 
-	localparam 	D0 = 5'd0;
-				D1 = 5'd1;
-				D2 = 5'd2;
-				D3 = 5'd3;
-				D4 = 5'd4;
-				D5 = 5'd5;
-				D6 = 5'd6;
-				D7 = 5'd7;
-				D8 = 5'd8;
-				D9 = 5'd9;
-				D10 = 5'd10;
-				D11 = 5'd11;
-				D12 = 5'd12;
-				D13 = 5'd13;
-				D14 = 5'd14;
-				D15 = 5'd15;
-				WAIT = 5'd16;
+	localparam 	D0 = 5'd0,
+				D1 = 5'd1,
+				D2 = 5'd2,
+				D3 = 5'd3,
+				D4 = 5'd4,
+				D5 = 5'd5,
+				D6 = 5'd6,
+				D7 = 5'd7,
+				D8 = 5'd8,
+				D9 = 5'd9,
+				D10 = 5'd10,
+				D11 = 5'd11,
+				D12 = 5'd12,
+				D13 = 5'd13,
+				D14 = 5'd14,
+				D15 = 5'd15,
+				WAIT = 5'd16,
 				WAIT_RESET = 5'd17;
 
 	always@(posedge clk) begin: state_table
