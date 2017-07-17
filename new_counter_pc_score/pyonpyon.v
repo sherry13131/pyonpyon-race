@@ -830,8 +830,8 @@ module pc_score_counter(
   begin
     if(resetn == 1'b0)   // begin the score from 32 boxes
     begin
-      q0 <= 4'b0011;
-      q1 <= 4'b0010;
+      q0 <= 4'b0010;
+      q1 <= 4'b0011;
 		ended <= 1'b0;
     end
     else if(enable == 1'b1)
@@ -841,7 +841,10 @@ module pc_score_counter(
         if (q1 == 4'b0000) // if the second digit is zero, end game give signal
           ended <= 1'b1;
         else
-          q1 <= q1 - 1'b1; // else second digit minus 1
+		  begin
+			 q0 <= 4'b0101;   // change the first digit to 9
+          q1 <= q1 - 1'b1; // second digit minus 1
+		  end
       end
       else
         q0 <= q0 - 1'b1; // plus one if q0 (first digit is not 9)
