@@ -5,31 +5,13 @@ module pyonpyon
 		CLOCK_50,						
       KEY,
       SW,
-		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7,
-
-		VGA_CLK,   						
-		VGA_HS,							
-		VGA_VS,						
-		VGA_BLANK_N,					
-		VGA_SYNC_N,					
-		VGA_R,   					
-		VGA_G,	 						
-		VGA_B   						
+		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7,					
 	);
 
 	input			CLOCK_50;				
 	input   [17:0]   SW;
 	input   [3:0]   KEY;
-	input   [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;
-
-	output			VGA_CLK;   				
-	output			VGA_HS;					
-	output			VGA_VS;					
-	output			VGA_BLANK_N;			
-	output			VGA_SYNC_N;				
-	output	[9:0]	VGA_R;   				
-	output	[9:0]	VGA_G;	 				
-	output	[9:0]	VGA_B;   				
+	output   [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;				
 	
 	wire resetn; // resets the board to original, when resetn=0, it reset; when resetn=1, it doesn't reset.
 	assign resetn = ~SW[1];
@@ -44,10 +26,6 @@ module pyonpyon
 	wire [3:0] score11;
 	wire [3:0] score12;
 	
-	wire [2:0] colour;
-	wire [7:0] x;
-	wire [6:0] y;
-	
 	wire [3:0] Q1;
    wire [3:0] Q2;
 	wire [3:0] pc_score_out_1;
@@ -58,59 +36,9 @@ module pyonpyon
 	assign ended = 1'b0;
 
 	wire reset_en;
-	wire leftone, rightone; // player one controls
-	assign leftone = ~KEY[3];
-	assign rightone = ~KEY[2];
-
-	wire lefttwo, righttwo; // player two controls
-	assign lefttwo = ~KEY[1];
-	assign righttwo = ~KEY[0];
-
-	vga_adapter VGA(
-			.resetn(1'b1),
-			.clock(CLOCK_50),
-			.colour(colour),
-			.x(x),
-			.y(y),
-			.plot(1'b1),
-			.VGA_R(VGA_R),
-			.VGA_G(VGA_G),
-			.VGA_B(VGA_B),
-			.VGA_HS(VGA_HS),
-			.VGA_VS(VGA_VS),
-			.VGA_BLANK(VGA_BLANK_N),
-			.VGA_SYNC(VGA_SYNC_N),
-			.VGA_CLK(VGA_CLK)
-			);
-		defparam VGA.RESOLUTION = "160x120";
-		defparam VGA.MONOCHROME = "FALSE";
-		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
-		defparam VGA.BACKGROUND_IMAGE = "background.mif";
-		
-	control c(
-		.clk(CLOCK_50),
-		.resetn(resetn),
-		.start(enable),
-		.finish(finish)
-		);
-		
-	datapath d(
-        .clk(CLOCK_50),
-        .resetn(resetn),
-        .enable(enable),
-        .leftone(~KEY[3]), 
-        .rightone(~KEY[2]),
-        .lefttwo(~KEY[1]),
-        .righttwo(~KEY[0]),
-        .reset_en(reset_en),
-        .finish(finish),
-        .x(x),
-        .y(y),
-        .colour(colour),
-        .timer(timer),
-        .score1(score1),
-		  .score2(score2)
-    );
+	wire left, right; // player one controls
+	assign left = ~KEY[3];
+	assign right = ~KEY[2];
 	 
     counter_time ctimer(		// timer counter
         .enable(enable),
@@ -125,8 +53,8 @@ module pyonpyon
 		.clk(CLOCK_50),
 		.resetn(resetn),
 		.speed(SW[17:16]),
-		.score_out_1(pc_score_out_1),
-		.score_out_2(pc_score_out_2),
+		.pc_score_one(pc_score_out_1),
+		.pc_score_two(pc_score_out_2),
 		.ended(ended)
 		);
 	
@@ -165,6 +93,148 @@ module pyonpyon
 			
 endmodule
 
+module player(
+	input resetn, // disables player from increasing score
+	input enable, // also disables player from increasing score
+	input box, // next box to advance (from shifter)
+	input left, // left key
+	input right, // right key
+	output reg correctkey // to decrease score and shift box when player presses correct key
+	);
+
+	always@(posedge left, posedge right) begin // when player presses key
+		if (box && right) begin // box = 1 means box is on the right
+			correctkey <= 1'b1; // send signal
+		end
+		else if (~box && left) begin // box = 0 means box is on the left
+			correctkey <= 1'b1; // send signal
+		end
+		else correctkey <= 1'b0; // none of the above applies so player didn't press right key
+	end
+
+	always@(negedge left, negedge right) begin // when player releases key
+		correctkey <= 1'b0; // they didn't press anything so not correctkey
+	end
+
+	always@(*) begin
+		if (resetn || ~enable) // check if reset is on or enable is off
+			correctkey <= 1'b0; // correct key is always off
+		else
+			correctkey <= correctkey; // default
+	end
+endmodule
+
+// wire [32:0] boxes = 33’b0_1101_0001_0101_1101_1001_0110_1000_1001;
+
+module shifter(
+  input [32:0] loadval, // 33 bit structure of boxes
+  input load_n,  // loads structure when user presses reset
+  input shiftright, // shifts right when game is on
+  input asr, // always 0
+  input clk, // uses correctkey from player module to shift
+  input reset_n, // same as load_n
+  output q // next box to traverse, 0 = left, 1 = right
+  );
+
+  wire q32, q31, q30, q29, q28, q27, q26, q25, q24, q23, q22, q21, q20, q19, q18, q17,
+       q16, q15, q14, q13, q12, q11, q10, q9, q8, q7, q6, q5, q4, q3, q2, q1, q0;
+  assign q = q0;
+
+  shifterbit S32(.load_val(loadval[32]), .in(1'b0), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q32));
+  shifterbit S31(.load_val(loadval[31]), .in(q32), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q31));
+  shifterbit S30(.load_val(loadval[30]), .in(q31), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q30));
+  shifterbit S29(.load_val(loadval[29]), .in(q30), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q29));
+  shifterbit S28(.load_val(loadval[28]), .in(q29), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q28));
+  shifterbit S27(.load_val(loadval[27]), .in(q28), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q27));
+  shifterbit S26(.load_val(loadval[26]), .in(q27), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q26));
+  shifterbit S25(.load_val(loadval[25]), .in(q26), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q25));
+  shifterbit S24(.load_val(loadval[24]), .in(q25), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q24));
+  shifterbit S23(.load_val(loadval[23]), .in(q24), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q23));
+  shifterbit S22(.load_val(loadval[22]), .in(q23), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q22));
+  shifterbit S21(.load_val(loadval[21]), .in(q22), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q21));
+  shifterbit S20(.load_val(loadval[20]), .in(q21), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q20));
+  shifterbit S19(.load_val(loadval[19]), .in(q20), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q19));
+  shifterbit S18(.load_val(loadval[18]), .in(q19), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q18));
+  shifterbit S17(.load_val(loadval[17]), .in(q18), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q17));
+  shifterbit S16(.load_val(loadval[16]), .in(q17), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q16));
+  shifterbit S15(.load_val(loadval[15]), .in(q16), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q15));
+  shifterbit S14(.load_val(loadval[14]), .in(q15), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q14));
+  shifterbit S13(.load_val(loadval[13]), .in(q14), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q13));
+  shifterbit S12(.load_val(loadval[12]), .in(q13), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q12));
+  shifterbit S11(.load_val(loadval[11]), .in(q12), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q11));
+  shifterbit S10(.load_val(loadval[10]), .in(q11), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q10));
+  shifterbit S9(.load_val(loadval[9]), .in(q10), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q9));
+  shifterbit S8(.load_val(loadval[8]), .in(q9), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q8));
+  shifterbit S7(.load_val(loadval[7]), .in(q8), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q7));
+  shifterbit S6(.load_val(loadval[6]), .in(q7), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q6));
+  shifterbit S5(.load_val(loadval[5]), .in(q6), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q5));
+  shifterbit S4(.load_val(loadval[4]), .in(q5), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q4));
+  shifterbit S3(.load_val(loadval[3]), .in(q4), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q3));
+  shifterbit S2(.load_val(loadval[2]), .in(q3), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q2));
+  shifterbit S1(.load_val(loadval[1]), .in(q2), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q1));
+  shifterbit S0(.load_val(loadval[0]), .in(q1), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q0));
+
+endmodule
+
+module shifterbit(load_val, in, shift, load_n, clk, reset_n, out);
+  input load_val;
+  input in;
+  input shift;
+  input load_n;
+  input clk;
+  input reset_n;
+  output out;
+  wire shiftwire;
+  wire loadwire;
+
+  mux2to1 M0(  // instantiate 1st multiplexer
+      .x(out),
+      .y(in),
+      .s(shift),
+      .m(shiftwire)  // outputs to 2nd multiplexer
+      );
+
+  mux2to1 M1(  // instantiate 2nd multiplexer
+      .x(load_val),
+      .y(shiftwire),
+      .s(load_n),
+      .m(loadwire)  // outputs to flipflop
+      );
+
+  flipflop F0(  // instantiate flipflop
+      .D(loadwire),
+      .clock(clk),
+      .reset(reset_n),
+      .qout(out)  // output from flipflop
+      );
+endmodule
+
+module mux2to1(x, y, s, m);
+  input x; //selected when s is 0
+  input y; //selected when s is 1
+  input s; //select signal
+  output m; //output
+  
+  assign m = s & y | ~s & x;
+endmodule
+
+module flipflop(D, clock, reset, qout);
+  input D;
+  input clock;
+  input reset;
+  reg Q;
+  output qout;
+
+  always @(posedge clock)
+  begin
+  	if (reset == 1'b0)  // synchronous active low reset
+  	  Q <= 0;
+  	else
+  	  Q <= D;
+  end
+  assign qout = Q;
+endmodule
+
 module process_number(number, q0, q1);    // to separate a 8bits binary to two 4 bits binary
     input [7:0] number;							// 8 bits binary
     output reg [3:0] q0;						// last 4 bits
@@ -184,582 +254,13 @@ module process_number(number, q0, q1);    // to separate a 8bits binary to two 4
     end
 endmodule
 
-// control
-module control(
-    // --- signals ---
-    input clk,
-    input resetn,   //reset
-    input start,    //start - when the game start with SW[0] on
-    input finish       // signal to end the game (getting from datapath)
-    );
-
-    reg current_state, next_state; 
-    
-    localparam  START           = 2'd0,
-                S_LOAD_CLICK    = 2'd1,
-                RESTART_WAIT    = 2'd2,
-                RESTART         = 2'd3;
-    
-    // state table FSM
-    always@(*)
-    begin: state_table 
-            case (current_state)
-                START: next_state = (start&&~resetn) ? S_LOAD_CLICK : START; // start the game if not in reset and enter the state loop
-                S_LOAD_CLICK: next_state = finish ? RESTART_WAIT : S_LOAD_CLICK; // loop in current state until game finishes
-                RESTART_WAIT: next_state = resetn ? START : RESTART_WAIT; // stay until player resets game
-            default: next_state = START;
-        endcase
-    end // state_table
-
-    // current_state registers
-    always@(posedge clk)
-    begin: state_FFs
-        if(!start) current_state <= START; // if start switch is down then start from the beginning
-        else current_state <= next_state; // go to next state
-    end // state_FFS
-endmodule
-
-// datapath
-module datapath(
-    input clk,
-    input resetn,
-    input enable,
-    input leftone, rightone,
-    input lefttwo, righttwo,
-    output reg reset_en,
-    output finish,
-    output [7:0] x,
-    output [6:0] y,
-    output [2:0] colour,
-    output [7:0] timer,
-    output [7:0] score1,
-	 output [7:0] score2
-    );
-	 
-	 reg playernumber;
-	 reg left;
-	 reg right;
-	 
-	 always@(*) begin
-		if(leftone || rightone) begin					// if player one click a key
-			playernumber <= 1'b0;
-			left <= leftone;
-			right <= rightone;
-		end
-		else if (lefttwo || righttwo) begin       // if player two click a key
-			playernumber <= 1'b1;
-			left <= lefttwo;
-			right <= righttwo;
-		end
-	 end
-
-    player p12( // player one/two module
-        .clk(clk),
-        .resetn(resetn),
-        .enable(enable),
-        .left(left),
-        .right(right),
-        .playernumber(playernumber),
-        .x(x),
-        .y(y),
-        .colour(colour),
-        .score1(score1),
-	  	  .score2(score2),
-        .finish(finish));
-
-    always@(posedge clk) begin
-        if (resetn) reset_en <= 1'b1; // send reset signal if user resets
-        else reset_en <= 1'b0;
-    end
-
-endmodule
-
-module player(
-    input clk,
-    input resetn,
-    input enable,
-    input left,
-	 input right,
-    input playernumber,
-    output reg [7:0] x,
-    output reg [6:0] y,
-    output reg [2:0] colour,
-    output reg [7:0] score1,
-	 output reg [7:0] score2,
-    output reg finish
-    );
-
-    reg [4:0] state;
-    reg [2:0] boxcolour;
-    reg [7:0] leftx;
-    reg [7:0] rightx;
-	 
-	 always@(*) begin
-		 if(playernumber == 1'b0) begin // check if it's player one
-			  boxcolour <= 3'b100; // box colour is red
-			  leftx <= 8'b0010_0110; // left boxes' coordinate is 38
-			  rightx <= 8'b0010_1011; // right boxes' coordinate is 43
-		 end
-		 else begin // otherwise it's player two
-		 
-			  boxcolour <= 3'b001; // box colour is blue
-			  leftx <= 8'b0111_0110; // left boxes' coordinate is 118
-			  rightx <= 8'b0111_1011; // right boxes' coordinate is 123
-		 end
-	 end
-	
-    always@(posedge clk) begin
-        colour <= boxcolour;
-    end
-
-    always@(posedge clk) begin
-	 
-        if (resetn) state <= 5'd0; // before game starts
-		  
-        else if (enable) begin // check if game started
-		  
-            if (state == 5'd0) begin // this is when game first starts
-                if (right) begin
-                    state <= 5'd1; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0110_0100; // 100
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd1) begin
-                if (left) begin
-                    state <= 5'd2; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0110_0001; // 97
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd2) begin
-                if (left) begin
-                    state <= 5'd3; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0101_1110; // 94
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd3) begin
-                if (right) begin
-                    state <= 5'd4; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0101_1011; // 91
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd4) begin
-                if (left) begin
-                    state <= 5'd5; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0101_1000; // 88
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd5) begin
-                if (left) begin
-                    state <= 5'd6; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0101_0101; // 85
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd6) begin
-                if (left) begin
-                    state <= 5'd7; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0101_0010; // 82
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd7) begin
-                if (right) begin
-                    state <= 5'd8; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0100_1111; // 79
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd8) begin
-                if (left) begin
-                    state <= 5'd9; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0100_1100; // 76
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd9) begin
-                if (right) begin
-                    state <= 5'd10; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0100_1001; // 73
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd10) begin
-                if (right) begin
-                    state <= 5'd11; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0100_0110; // 70
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd11) begin
-                if (left) begin
-                    state <= 5'd12; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0100_0011; // 67
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd12) begin
-                if (right) begin
-                    state <= 5'd13; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0100_0000; // 64
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd13) begin
-                if (left) begin
-                    state <= 5'd14; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0011_1101; // 61
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd14) begin
-                if (left) begin
-                    state <= 5'd15; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0011_1010; // 58
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd15) begin
-                if (right) begin
-                    state <= 5'd16; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0011_0111; // 55
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd16) begin
-                if (right) begin
-                    state <= 5'd17; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0011_0100; // 52
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-
-            else if (state == 5'd17) begin
-                if (left) begin
-                    state <= 5'd18; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0011_0001; // 49
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd18) begin
-                if (right) begin
-                    state <= 5'd19; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0010_1110; // 46
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd19) begin
-                if (right) begin
-                    state <= 5'd20; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0010_1011; // 43
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd20) begin
-                if (right) begin
-                    state <= 5'd21; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0010_1000; // 40
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd21) begin
-                if (left) begin
-                    state <= 5'd22; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0010_0101; // 37
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd22) begin
-                if (right) begin
-                    state <= 5'd23; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0010_0010; // 34
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd23) begin
-                if (left) begin
-                    state <= 5'd24; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0001_1111; // 31
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd24) begin
-                if (right) begin
-                    state <= 5'd25; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0001_1100; // 28
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd25) begin
-                if (left) begin
-                    state <= 5'd26; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0001_1001; // 25
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd26) begin
-                if (left) begin
-                    state <= 5'd27; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0001_0110; // 22
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd27) begin
-                if (left) begin
-                    state <= 5'd28; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0001_0011; // 19
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd28) begin
-                if (right) begin
-                    state <= 5'd29; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0010_0000; // 16
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd29) begin
-                if (left) begin
-                    state <= 5'd30; // go to next box because correct answer
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0000_1101; // 13
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd30) begin
-                if (right) begin
-                    state <= 5'd31; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0000_1010; // 10
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd31) begin
-                if (right) begin
-                    state <= 5'd32; // go to next box because correct answer
-                    // draw in box
-                    x <= rightx;
-                    y <= 8'b0000_0111; // 7
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-            else if (state == 5'd32) begin
-                if (left) begin
-                    // draw in box
-                    x <= leftx;
-                    y <= 8'b0000_0100; // 4
-                    // check the player reach the top
-                    finish <= 1'b1;
-                end
-                else if (playernumber == 1'b0)
-						score1 <= score1 + 1'b1; // add to accuracy score because incorrect answer
-					 else if (playernumber == 1'b1)
-						score2 <= score2 + 1'b1; // add to accuracy score because incorrect answer
-            end
-				
-        end
-	 end
-
-endmodule
-
 module pc_score_counter(
 	input enable,   // when game start
 	input clk,		// CLOCK_50
 	input resetn,   // when game reset
-	input speed,	// speed chosen by player
-	output score_out_1,	// first digit of pc number of box
-	output score_out_2,   // second digit of pc number of box
+	input [1:0] speed,	// speed chosen by player
+	output pc_score_one,	// first digit of pc number of box
+	output pc_score_two,   // second digit of pc number of box
 	output ended    		// signal for the game is ended
 	);
 	
@@ -801,7 +302,7 @@ module pc_score_counter(
 			2'b00: display_counter_en = (rd_075hz_out == 28'b0) ? 1 : 0;   // 0.75 Hz
 			2'b01: display_counter_en = (rd_050hz_out == 28'b0) ? 1 : 0;  // 0.5 Hz
 			2'b10: display_counter_en = (rd_025hz_out == 28'b0) ? 1 : 0;  // 0.25 Hz
-			2'b11: display_counter_en = (rd_075hz_out == 28'b0) ? 1: 0; // also 0.75 Hz
+			2'b11: display_counter_en = (rd_075hz_out == 28'b0) ? 1 : 0; // also 0.75 Hz
 			default: display_counter_en = 28'b0;
 		 endcase
    end
@@ -830,8 +331,8 @@ module pc_score_counter(
   begin
     if(resetn == 1'b0)   // begin the score from 32 boxes
     begin
-      q0 <= 4'b0010;
-      q1 <= 4'b0011;
+      q0 <= 4'b0010;      // right
+      q1 <= 4'b0011;      // left
 		ended <= 1'b0;
     end
     else if(enable == 1'b1)
