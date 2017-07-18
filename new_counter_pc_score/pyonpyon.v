@@ -240,8 +240,8 @@ module pc_score_counter(
 	input clk,		// CLOCK_50
 	input resetn,   // when game reset
 	input [1:0] speed,	// speed chosen by player
-	output pc_score_one,	// first digit of pc number of box
-	output pc_score_two,   // second digit of pc number of box
+	output [3:0] pc_score_one,	// first digit of pc number of box with 4 bits
+	output [3:0] pc_score_two,   // second digit of pc number of box with 4 bits
 	output ended    		// signal for the game is ended
 	);
 	
