@@ -1,15 +1,15 @@
 module pyonpyon
   (
-    CLOCK_50,						
+    CLOCK_50,           
     KEY,
     SW,
-    HEX0, HEX1, HEX4, HEX5, HEX6, HEX7			
+    HEX0, HEX1, HEX4, HEX5, HEX6, HEX7      
   );
 
-  input	CLOCK_50;				
+  input CLOCK_50;       
   input   [17:0]  SW;
   input   [3:0]   KEY;
-  output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;				
+  output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;       
 
   wire resetn;  // resets the board to original, when resetn = 0, it reset; when resetn = 1, it doesn't reset.
   assign resetn = ~SW[1];
@@ -32,12 +32,34 @@ module pyonpyon
   wire [3:0] player_score_out_1;
   wire [3:0] player_score_out_2;
 
-  wire ended;  // whether either cpu or player ended
-  assign ended = 1'b0;
+  wire next_box;
+  wire correctkey;
+
+  wire ended, ended_player, ended_pc;  // whether either cpu or player ended
+  assign ended = 1'b0; // **************** POTENTIAL ISSUE ****************
 
   wire left, right;  // player one controls
   assign left = ~KEY[3];
   assign right = ~KEY[2];
+
+  player p(  // player module
+    .resetn(resetn),
+    .enable(enable),
+    .box(next_box),
+    .left(left),
+    .right(right),
+    .correctkey(correctkey)
+  );
+
+  shifter s(  // shifter for boxes
+    .loadval(boxes),
+    .load_n(resetn),
+    .shiftright(enable),
+    .asr(1'b0),
+    .clk(correctkey),
+    .reset_n(resetn),
+    .q(next_box)  // next box to traverse
+  );
 
   counter_time ctimer(  // timer counter
     .enable(enable),
@@ -47,14 +69,22 @@ module pyonpyon
     .timer_out_two(Q2)
   );
 
-  pc_score_counter pc_score(	 // pc score counter
+  display_counter_down_player player_score(
+    .correctkey(correctkey),
+    .resetn(resetn),
+    .ended(ended_player),
+    .q0(player_score_out_1),
+    .q1(player_score_out_2)
+    );
+
+  pc_score_counter pc_score(   // pc score counter
     .enable(enable),
     .clk(CLOCK_50),
     .resetn(resetn),
     .speed(SW[17:16]),
     .pc_score_one(pc_score_out_1),
     .pc_score_two(pc_score_out_2),
-    .ended(ended)
+    .ended(ended_pc)
   );
 
   // timer display
@@ -306,7 +336,7 @@ module pc_score_counter(
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-    .countdown_start(28'b1011111010111100000111111),  // 24,999,999 in decimal	 
+    .countdown_start(28'b1011111010111100000111111),  // 24,999,999 in decimal   
     .q(medium_out)
   );
 
@@ -351,7 +381,7 @@ module display_counter_down_pc(enable, resetn, clk, ended, q0, q1);
   input enable; // enable when the countdown_start reach zero for pc
   input resetn;  // game reset
   input clk;
-  output reg ended;	 // signal for the game is ended
+  output reg ended;  // signal for the game is ended
   output reg [3:0] q0; // 4 bit counting (in this case hex4)
   output reg [3:0] q1; // 4 bit counting (in this case hex5)
 
