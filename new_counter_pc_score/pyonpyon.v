@@ -1,25 +1,24 @@
-// Part 2 skeleton
-
 module pyonpyon
 	(
 		CLOCK_50,						
-      		KEY,
-      		SW,
+    KEY,
+    SW,
 		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7			
 	);
 
 	input	CLOCK_50;				
-	input   [17:0]   SW;
+	input   [17:0]  SW;
 	input   [3:0]   KEY;
 	output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;				
 	
-	wire resetn; // resets the board to original, when resetn=0, it reset; when resetn=1, it doesn't reset.
+	wire resetn;  // resets the board to original, when resetn = 0, it reset; when resetn = 1, it doesn't reset.
 	assign resetn = ~SW[1];
 
-	wire enable; // game starts
+	wire enable;  // game starts
 	assign enable = SW[0];
+
+  wire [32:0] boxes = 33’b0_1101_0001_0101_1101_1001_0110_1000_1001; // structure of boxes, 0 = left, 1 = right
 	
-	wire finish;
 	wire [7:0] timer;
 	wire [7:0] score1;
 	wire [7:0] score2;
@@ -27,113 +26,117 @@ module pyonpyon
 	wire [3:0] score12;
 	
 	wire [3:0] Q1;
-   	wire [3:0] Q2;
+  wire [3:0] Q2;
 	wire [3:0] pc_score_out_1;
 	wire [3:0] pc_score_out_2;
 	wire [3:0] player_score_out_1;
 	wire [3:0] player_score_out_2;
-	wire ended;
+
+	wire ended;  // whether either cpu or player ended
 	assign ended = 1'b0;
 
-	wire reset_en;
-	wire left, right; // player one controls
+	wire left, right;  // player one controls
 	assign left = ~KEY[3];
 	assign right = ~KEY[2];
 	 
-    counter_time ctimer(		// timer counter
-        .enable(enable),
-        .clk(CLOCK_50),
-        .resetn(resetn), 
-        .timer_out_one(Q1),
-        .timer_out_two(Q2)
-        );
+  counter_time ctimer(  // timer counter
+    .enable(enable),
+    .clk(CLOCK_50),
+    .resetn(resetn), 
+    .timer_out_one(Q1),
+    .timer_out_two(Q2)
+    );
 		 
-	 pc_score_counter pc_score(	// pc score counter
-		.enable(enable),
+	pc_score_counter pc_score(	 // pc score counter
+    .enable(enable),
 		.clk(CLOCK_50),
 		.resetn(resetn),
 		.speed(SW[17:16]),
 		.pc_score_one(pc_score_out_1),
 		.pc_score_two(pc_score_out_2),
 		.ended(ended)
-		);
+	);
 	
-	 // timer display
-    dec_decoder h0(
-        .dec_digit(Q1),
-        .segments(HEX0)
-      );
+	// timer display
+  dec_decoder h0(
+    .dec_digit(Q1),
+    .segments(HEX0)
+    );
       
-    dec_decoder h1(
-        .dec_digit(Q2),
-        .segments(HEX1)
-      );
+  dec_decoder h1(
+    .dec_digit(Q2),
+    .segments(HEX1)
+    );
 
-	 // pc score display
-    dec_decoder h4(
-        .dec_digit(pc_score_out_1), 
-        .segments(HEX4)
-        );
+	// pc score display
+  dec_decoder h4(
+    .dec_digit(pc_score_out_1), 
+    .segments(HEX4)
+    );
         
-    dec_decoder h5(
-        .dec_digit(pc_score_out_2), 
-        .segments(HEX5)
-        );
+  dec_decoder h5(
+    .dec_digit(pc_score_out_2), 
+    .segments(HEX5)
+    );
 
-	 // player score display
-    dec_decoder h6(
-        .dec_digit(player_score_out_1),
-        .segments(HEX6)
-        );
+	// player score display
+  dec_decoder h6(
+    .dec_digit(player_score_out_1),
+    .segments(HEX6)
+    );
 
-    dec_decoder h7(
-        .dec_digit(player_score_out_2),
-        .segments(HEX7)
-        );
+  dec_decoder h7(
+    .dec_digit(player_score_out_2),
+    .segments(HEX7)
+    );
 			
 endmodule
 
+// --------------------
+// player module
+// --------------------
 module player(
-	input resetn, // disables player from increasing score
-	input enable, // also disables player from increasing score
-	input box, // next box to advance (from shifter)
-	input left, // left key
-	input right, // right key
-	output reg correctkey // to decrease score and shift box when player presses correct key
+	input resetn,  // disables player from increasing score when reset = 1
+	input enable,  // also disables player from increasing score when enable = 0
+	input box,  // next box to advance (from shifter)
+	input left,  // left key
+	input right,  // right key
+	output reg correctkey  // to decrease score and shift box when player presses correct key
 	);
 
-	always@(posedge left, posedge right) begin // when player presses key
-		if (box && right) begin // box = 1 means box is on the right
-			correctkey <= 1'b1; // send signal
+	always@(posedge left, posedge right) begin  // when player presses key
+		if (box && right) begin  // box = 1 means box is on the right
+			correctkey <= 1'b1;  // send signal
 		end
-		else if (~box && left) begin // box = 0 means box is on the left
-			correctkey <= 1'b1; // send signal
+		else if (~box && left) begin  // box = 0 means box is on the left
+			correctkey <= 1'b1;  // send signal
 		end
-		else correctkey <= 1'b0; // none of the above applies so player didn't press right key
+		else correctkey <= 1'b0;  // none of the above applies so player didn't press right key
 	end
 
-	always@(negedge left, negedge right) begin // when player releases key
-		correctkey <= 1'b0; // they didn't press anything so not correctkey
+	always@(negedge left, negedge right) begin  // when player releases key
+		correctkey <= 1'b0;  // they didn't press anything so not correctkey
 	end
 
 	always@(*) begin
-		if (resetn || ~enable) // check if reset is on or enable is off
-			correctkey <= 1'b0; // correct key is always off
+		if (resetn || ~enable)  // check if reset is on or enable is off
+			correctkey <= 1'b0;  // correct key is always off
 		else
-			correctkey <= correctkey; // default
+			correctkey <= correctkey;  // default
 	end
 endmodule
 
-// wire [32:0] boxes = 33’b0_1101_0001_0101_1101_1001_0110_1000_1001;
-
+// --------------------
+// shifter module
+// --------------------
 module shifter(
-  input [32:0] loadval, // 33 bit structure of boxes
+  input [32:0] loadval,  // 33 bit structure of boxes
   input load_n,  // loads structure when user presses reset
-  input shiftright, // shifts right when game is on
-  input asr, // always 0
-  input clk, // uses correctkey from player module to shift
-  input reset_n, // same as load_n
-  output q // next box to traverse, 0 = left, 1 = right
+  input shiftright,  // shifts right when game is on
+  input asr,  // always 0
+  input clk,  // uses correctkey from player module to shift
+  input reset_n,  // same as load_n
+  output q  // next box to traverse, 0 = left, 1 = right
   );
 
   wire q32, q31, q30, q29, q28, q27, q26, q25, q24, q23, q22, q21, q20, q19, q18, q17,
@@ -188,25 +191,26 @@ module shifterbit(load_val, in, shift, load_n, clk, reset_n, out);
   wire loadwire;
 
   mux2to1 M0(  // instantiate 1st multiplexer
-      .x(out),
-      .y(in),
-      .s(shift),
-      .m(shiftwire)  // outputs to 2nd multiplexer
-      );
+    .x(out),
+    .y(in),
+    .s(shift),
+    .m(shiftwire)  // outputs to 2nd multiplexer
+    );
 
   mux2to1 M1(  // instantiate 2nd multiplexer
-      .x(load_val),
-      .y(shiftwire),
-      .s(load_n),
-      .m(loadwire)  // outputs to flipflop
-      );
+    .x(load_val),
+    .y(shiftwire),
+    .s(load_n),
+    .m(loadwire)  // outputs to flipflop
+    );
 
   flipflop F0(  // instantiate flipflop
-      .D(loadwire),
-      .clock(clk),
-      .reset(reset_n),
-      .qout(out)  // output from flipflop
-      );
+    .D(loadwire),
+    .clock(clk),
+    .reset(reset_n),
+    .qout(out)  // output from flipflop
+    );
+
 endmodule
 
 module mux2to1(x, y, s, m);
@@ -235,67 +239,111 @@ module flipflop(D, clock, reset, qout);
   assign qout = Q;
 endmodule
 
+// --------------------
+// player score counter
+// --------------------
+module display_counter_down_player(correctkey, resetn, ended, q0, q1);
+  input correctkey;  // enable when the signal correct is high, player clicks the correct key
+  input resetn;  // game reset
+  output reg ended;  // signal for the game is ended
+  output reg [3:0] q0;  // 4 bit counting (in this case hex4)
+  output reg [3:0] q1;  // 4 bit counting (in this case hex5)
+  
+  // asynchrnously handle reset_n signals
+  always @(posedge correctkey) begin  // when player presses the correct key
+    if(resetn == 1'b0) begin  // begin the score from 32 boxes
+      q0 <= 4'b0010;  // 2 in digits
+      q1 <= 4'b0011;  // 3 in tens
+    ended <= 1'b0;
+    end
+    else begin
+      if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
+        if (q1 == 4'b0000) // if the second digit is zero, end game give signal
+          ended <= 1'b1;
+        else begin
+          q0 <= 4'b1001; // change the first digit to 9
+          q1 <= q1 - 1'b1; // second digit minus 1
+        end
+      end
+      else
+        q0 <= q0 - 1'b1; // minus one if q0 (first digit is not 0)
+    end
+  end
+
+endmodule
+
+
+// --------------------
+// cpu score counter
+// --------------------
 module pc_score_counter(
-	input enable,   // when game start
-	input clk,		// CLOCK_50
-	input resetn,   // when game reset
-	input [1:0] speed,	// speed chosen by player
-	output [3:0] pc_score_one,	// first digit of pc number of box with 4 bits
-	output [3:0] pc_score_two,   // second digit of pc number of box with 4 bits
-	output ended    		// signal for the game is ended
+	input enable,  // when game start
+	input clk,  // CLOCK_50
+	input resetn,  // when game reset
+	input [1:0] speed,  // speed chosen by player
+	output [3:0] pc_score_one,  // first digit of pc number of box with 4 bits
+	output [3:0] pc_score_two,  // second digit of pc number of box with 4 bits
+	output ended  // signal for the game is ended
 	);
 	
-	reg display_counter_en;    // enable to decrease 1 from the score
+	reg display_counter_en;  // enable to decrease 1 from the score
 	
 	// countdown of the rate divider
-	wire [27:0] rd_1hz_out;
-	wire [27:0] rd_2hz_out;
-	wire [27:0] rd_2dot5hz_out;
+	wire [27:0] easy_out;
+	wire [27:0] medium_out;
+	wire [27:0] hard_out;
+  wire [27:0] extreme_out;
 
-	rate_divider rd_1hz(
-		 .enable(enable),
-		 .clk(clk),
-		 .resetn(resetn),
-		 .countdown_start(28'b10111110101111000001111111), // 49,999,999 in decimal
-		 .q(rd_1hz_out)
+	rate_divider easy(  // 1.5 Hz
+		.enable(enable),
+		.clk(clk),
+		.resetn(resetn),
+		.countdown_start(28'b1111111001010000001010100),  // 33,333,332 in decimal
+		.q(easy_out)
+    );
+
+	rate_divider medium(  // 2 Hz
+		.enable(enable),
+		.clk(clk),
+		.resetn(resetn),
+		.countdown_start(28'b1011111010111100000111111),  // 24,999,999 in decimal	 
+		.q(medium_out)
+	  );
+	  
+	rate_divider hard( // 3 Hz
+		.enable(enable),
+		.clk(clk),
+		.resetn(resetn),
+		.countdown_start(28'b111111100101000000101001),  // 16,666,665 in decimal
+		.q(hard_out)
 	  );
 
-	rate_divider rd_2hz(
-		 .enable(enable),
-		 .clk(clk),
-		 .resetn(resetn),
-		 .countdown_start(28'b1011111010111100000111111), // 24,999,999 in decimal	 
-		 .q(rd_2hz_out)
-	  );
-	  
-	  
-	rate_divider rd_2dot5hz(
-		 .enable(enable),
-		 .clk(clk),
-		 .resetn(resetn),
-		 .countdown_start(28'b1001100010010110011111111), // 19,999,999 in decimal
-		 .q(rd_2dot5hz_out)
-	  );
-	  
-   always @(*)
-	  begin
-		 case(speed) // select speed for pc
-			2'b00: display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0;   // 1 Hz
-			2'b01: display_counter_en = (rd_2hz_out == 28'b0) ? 1 : 0;  // 2 Hz
-			2'b10: display_counter_en = (rd_2dot5hz_out == 28'b0) ? 1 : 0;  // 2.5 Hz
-			2'b11: display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0; // also 1 Hz
-			default: display_counter_en = 28'b0;
-		 endcase
-   end
-  
-   display_counter_down_pc pc_score(
-    .enable(display_counter_en),		// enable for the score counter -1
-    .resetn(resetn),					// reset of the game
+  rate_divider extreme( // 5 Hz
+    .enable(enable),
     .clk(clk),
-	 .ended(ended),						// signal for the game is ended
-    .q0(pc_score_one),					// score of pc (first digit)
-	 .q1(pc_score_two)					// score of pc (second digit)
-  );
+    .resetn(resetn),
+    .countdown_start(28'b100110001001011001111111),  // 9,999,999 in decimal
+    .q(extreme_out)
+    );
+	  
+  always @(*) begin
+		case(speed) // select speed for pc
+			2'b00: display_counter_en = (easy_out == 28'b0) ? 1 : 0;   // 1.5 Hz
+			2'b01: display_counter_en = (medium_out == 28'b0) ? 1 : 0;  // 2 Hz
+			2'b10: display_counter_en = (hard_out == 28'b0) ? 1 : 0;  // 3 Hz
+			2'b11: display_counter_en = (extreme_out == 28'b0) ? 1 : 0;  // 5 Hz
+			default: display_counter_en = 28'b0;
+		endcase
+  end
+  
+  display_counter_down_pc pc_score(
+    .enable(display_counter_en),  // enable for the score counter -1
+    .resetn(resetn),  // reset of the game
+    .clk(clk),
+	  .ended(ended),  // signal for the game is ended
+    .q0(pc_score_one),  // score of pc (first digit)
+    .q1(pc_score_two)  // score of pc (second digit)
+    );
  
  endmodule
  
@@ -304,29 +352,24 @@ module pc_score_counter(
   input resetn;  // game reset
   input clk;
   output reg ended;	 // signal for the game is ended
-  output reg [3:0]q0; // 4 bit counting (in this case hex4)
-  output reg [3:0]q1; // 4 bit counting (in this case hex5)
+  output reg [3:0] q0; // 4 bit counting (in this case hex4)
+  output reg [3:0] q1; // 4 bit counting (in this case hex5)
   
   // asynchrnously handle reset_n signals
-  always @(posedge clk)
-  begin
-    if(resetn == 1'b0)   // begin the score from 32 boxes
-    begin
-      q0 <= 4'b0010;      // right
-      q1 <= 4'b0011;      // left
-		ended <= 1'b0;
+  always @(posedge clk) begin
+    if(resetn == 1'b0) begin  // begin the score from 32 boxes
+      q0 <= 4'b0010;  // right
+      q1 <= 4'b0011;  // left
+		  ended <= 1'b0;  // game didn't end
     end
-    else if(enable == 1'b1)
-    begin
-      if (q0 == 4'b0000) // if first digit is zero, check second digit
-      begin
+    else if(enable == 1'b1) begin
+      if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
         if (q1 == 4'b0000) // if the second digit is zero, give end game signal
           ended <= 1'b1;
-        else
-		  begin
-			 q0 <= 4'b1001;   // change the first digit to 9
-          q1 <= q1 - 1'b1; // second digit minus 1
-		  end
+        else begin
+        q0 <= 4'b1001;   // change the first digit to 9
+        q1 <= q1 - 1'b1; // second digit minus 1
+		    end
       end
       else
         q0 <= q0 - 1'b1; // plus one if q0 (first digit is not 9)
@@ -335,7 +378,9 @@ module pc_score_counter(
 
 endmodule
 
-
+// --------------------
+// time counter
+// --------------------
 module counter_time(enable, clk, resetn, timer_out_one, timer_out_two);
   input enable; // start signal
   input clk;
@@ -351,7 +396,7 @@ module counter_time(enable, clk, resetn, timer_out_one, timer_out_two);
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-	 .countdown_start(28'b10111110101111000001111111), // 49,999,999 in decimal
+    .countdown_start(28'b10111110101111000001111111), // 49,999,999 in decimal
     .q(rd_1hz_out)
   );
 
@@ -380,17 +425,13 @@ module display_counter_up(enable, resetn, clk, q0, q1);
   output reg [3:0]q1; // 4 bit counting on (in theis case hex1)
   
   // asynchrnously handle reset_n signals
-  always @(posedge clk)
-  begin
-    if(resetn == 1'b0)
-    begin
+  always @(posedge clk) begin
+    if(resetn == 1'b0) begin
       q0 <= 4'b0000;
       q1 <= 4'b0000;
     end
-    else if(enable == 1'b1)
-    begin
-      if (q0 == 4'b1001) // if first digit is 9, go back to zero (X9->X0)
-      begin
+    else if (enable == 1'b1) begin
+      if (q0 == 4'b1001) begin  // if first digit is 9, go back to zero (X9->X0)
         q0 <= 0;
         if (q1 == 4'b1001) // if the second digit is 9, go back to zero (99->00)
           q1 <= 0;
@@ -412,8 +453,7 @@ module rate_divider(enable, clk, resetn, countdown_start, q);
   output reg [27:0]q; // output register of the countdown value
 
   // start counting down until 0
-  always @(posedge clk)
-  begin
+  always @(posedge clk) begin
     if(resetn == 1'b0) // when clear_b is 0
       q <= countdown_start;
     else if(enable == 1'b1) // decrement q only when enable is high
@@ -422,21 +462,27 @@ module rate_divider(enable, clk, resetn, countdown_start, q);
   
 endmodule
 
+// --------------------
+// decimal decoder
+// --------------------
 module dec_decoder(dec_digit, segments);
-   input [3:0] dec_digit;
-   output reg [6:0] segments;
-   always @(*)
-     case (dec_digit)      // for decimal number only
-       4'h0: segments = 7'b100_0000;
-       4'h1: segments = 7'b111_1001;
-       4'h2: segments = 7'b010_0100;
-       4'h3: segments = 7'b011_0000;
-       4'h4: segments = 7'b001_1001;
-       4'h5: segments = 7'b001_0010;
-       4'h6: segments = 7'b000_0010;
-       4'h7: segments = 7'b111_1000;
-       4'h8: segments = 7'b000_0000;
-       4'h9: segments = 7'b001_0000;
-       default: segments = 7'b100_0000;
-     endcase
+  input [3:0] dec_digit;
+  output reg [6:0] segments;
+
+  always @(*) begin
+    case (dec_digit)  // for decimal number only
+      4'h0: segments = 7'b100_0000;
+      4'h1: segments = 7'b111_1001;
+      4'h2: segments = 7'b010_0100;
+      4'h3: segments = 7'b011_0000;
+      4'h4: segments = 7'b001_1001;
+      4'h5: segments = 7'b001_0010;
+      4'h6: segments = 7'b000_0010;
+      4'h7: segments = 7'b111_1000;
+      4'h8: segments = 7'b000_0000;
+      4'h9: segments = 7'b001_0000;
+      default: segments = 7'b100_0000;
+    endcase
+  end
+
 endmodule
