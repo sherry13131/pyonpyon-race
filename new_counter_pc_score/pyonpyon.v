@@ -3,15 +3,15 @@
 module pyonpyon
 	(
 		CLOCK_50,						
-      KEY,
-      SW,
+      		KEY,
+      		SW,
 		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7			
 	);
 
-	input			CLOCK_50;				
+	input	CLOCK_50;				
 	input   [17:0]   SW;
 	input   [3:0]   KEY;
-	output   [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;				
+	output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;				
 	
 	wire resetn; // resets the board to original, when resetn=0, it reset; when resetn=1, it doesn't reset.
 	assign resetn = ~SW[1];
@@ -27,7 +27,7 @@ module pyonpyon
 	wire [3:0] score12;
 	
 	wire [3:0] Q1;
-   wire [3:0] Q2;
+   	wire [3:0] Q2;
 	wire [3:0] pc_score_out_1;
 	wire [3:0] pc_score_out_2;
 	wire [3:0] player_score_out_1;
@@ -233,25 +233,6 @@ module flipflop(D, clock, reset, qout);
   	  Q <= D;
   end
   assign qout = Q;
-endmodule
-
-module process_number(number, q0, q1);    // to separate a 8bits binary to two 4 bits binary
-    input [7:0] number;							// 8 bits binary
-    output reg [3:0] q0;						// last 4 bits
-    output reg [3:0] q1;						// first 4 bits
-
-	 always@(*) begin								// calculation
-		 if (number < 7'b1010)					// if number less than 10
-		 begin
-			  q0 <= number[3:0];
-			  q1 <= 4'b0;
-		 end
-		 else											// if number greater than or equal to 10
-		 begin
-			  q0 <= number % 10;
-			  q1 <= number / 10;
-		 end
-    end
 endmodule
 
 module pc_score_counter(
