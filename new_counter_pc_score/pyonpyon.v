@@ -5,7 +5,7 @@ module pyonpyon
 		CLOCK_50,						
       KEY,
       SW,
-		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7,					
+		HEX0, HEX1, HEX4, HEX5, HEX6, HEX7			
 	);
 
 	input			CLOCK_50;				
@@ -267,42 +267,42 @@ module pc_score_counter(
 	reg display_counter_en;    // enable to decrease 1 from the score
 	
 	// countdown of the rate divider
-	wire [27:0] rd_075hz_out;
-	wire [27:0] rd_050hz_out;
-	wire [27:0] rd_025hz_out;
+	wire [27:0] rd_1hz_out;
+	wire [27:0] rd_2hz_out;
+	wire [27:0] rd_2dot5hz_out;
 
-	rate_divider rd_075hz(
+	rate_divider rd_1hz(
 		 .enable(enable),
 		 .clk(clk),
 		 .resetn(resetn),
-		 .countdown_start(28'b11111110010100000010101001), // 66,666,665 in decimal (originally 66666666.67 in decimal)
-		 .q(rd_075hz_out)
+		 .countdown_start(28'b10111110101111000001111111), // 49,999,999 in decimal
+		 .q(rd_1hz_out)
 	  );
 
-	rate_divider rd_050hz(
+	rate_divider rd_2hz(
 		 .enable(enable),
 		 .clk(clk),
 		 .resetn(resetn),
-		 .countdown_start(28'b101111101011110000011111111), // 99,999,999 in decimal	 
-		 .q(rd_050hz_out)
+		 .countdown_start(28'b1011111010111100000111111), // 24,999,999 in decimal	 
+		 .q(rd_2hz_out)
 	  );
 	  
 	  
-	rate_divider rd_025hz(
+	rate_divider rd_2dot5hz(
 		 .enable(enable),
 		 .clk(clk),
 		 .resetn(resetn),
-		 .countdown_start(28'b1011111010111100000111111111), // 199,999,999 in decimal
-		 .q(rd_025hz_out)
+		 .countdown_start(28'b1001100010010110011111111), // 19,999,999 in decimal
+		 .q(rd_2dot5hz_out)
 	  );
 	  
    always @(*)
 	  begin
 		 case(speed) // select speed for pc
-			2'b00: display_counter_en = (rd_075hz_out == 28'b0) ? 1 : 0;   // 0.75 Hz
-			2'b01: display_counter_en = (rd_050hz_out == 28'b0) ? 1 : 0;  // 0.5 Hz
-			2'b10: display_counter_en = (rd_025hz_out == 28'b0) ? 1 : 0;  // 0.25 Hz
-			2'b11: display_counter_en = (rd_075hz_out == 28'b0) ? 1 : 0; // also 0.75 Hz
+			2'b00: display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0;   // 1 Hz
+			2'b01: display_counter_en = (rd_2hz_out == 28'b0) ? 1 : 0;  // 2 Hz
+			2'b10: display_counter_en = (rd_2dot5hz_out == 28'b0) ? 1 : 0;  // 2.5 Hz
+			2'b11: display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0; // also 1 Hz
 			default: display_counter_en = 28'b0;
 		 endcase
    end
@@ -339,11 +339,11 @@ module pc_score_counter(
     begin
       if (q0 == 4'b0000) // if first digit is zero, check second digit
       begin
-        if (q1 == 4'b0000) // if the second digit is zero, end game give signal
+        if (q1 == 4'b0000) // if the second digit is zero, give end game signal
           ended <= 1'b1;
         else
 		  begin
-			 q0 <= 4'b0101;   // change the first digit to 9
+			 q0 <= 4'b1001;   // change the first digit to 9
           q1 <= q1 - 1'b1; // second digit minus 1
 		  end
       end
