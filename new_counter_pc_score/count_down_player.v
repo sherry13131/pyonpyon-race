@@ -22,7 +22,7 @@ module display_counter_down_player(correctkey, resetn, ended, q0, q1);
           ended <= 1'b1;
         else
 		  begin
-			 q0 <= 4'b0101;	// change the first digit to 9
+			 q0 <= 4'b1001;	// change the first digit to 9
           q1 <= q1 - 1'b1; // second digit minus 1
 		  end
       end
