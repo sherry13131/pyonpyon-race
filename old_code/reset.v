@@ -6,75 +6,76 @@ module reset(
 	output reg [2:0] colour
 	);
 
-	reg [3:0] curr, next;
+	reg [6:0] curr, next;
 
-	localparam 	D0 = 7'd0;
-				D1 = 7'd1;
-				D2 = 7'd2;
-				D3 = 7'd3;
-				D4 = 7'd4;
-				D5 = 7'd5;
-				D6 = 7'd6;
-				D7 = 7'd7;
-				D8 = 7'd8;
-				D9 = 7'd9;
-				D10 = 7'd10;
-				D11 = 7'd11;
-				D12 = 7'd12;
-				D13 = 7'd13;
-				D14 = 7'd14;
-				D15 = 7'd15;
-				D16 = 7'd16;
-				D17 = 7'd17;
-				D18 = 7'd18;
-				D19 = 7'd19;
-				D20 = 7'd20;
-				D21 = 7'd21;
-				D22 = 7'd22;
-				D23 = 7'd23;
-				D24 = 7'd24;
-				D25 = 7'd25;
-				D26 = 7'd26;
-				D27 = 7'd27;
-				D28 = 7'd28;
-				D29 = 7'd29;
-				D30 = 7'd30;
-				D31 = 7'd31;
-				D32 = 7'd32;
-				D33 = 7'd33;
-				D34 = 7'd34;
-				D35 = 7'd35;
-				D36 = 7'd36;
-				D37 = 7'd37;
-				D38 = 7'd38;
-				D39 = 7'd39;
-				D40 = 7'd40;
-				D41 = 7'd41;
-				D42 = 7'd42;
-				D43 = 7'd43;
-				D44 = 7'd44;
-				D45 = 7'd45;
-				D46 = 7'd46;
-				D47 = 7'd47;
-				D48 = 7'd48;
-				D49 = 7'd49;
-				D50 = 7'd50;
-				D51 = 7'd51;
-				D52 = 7'd52;
-				D53 = 7'd53;
-				D54 = 7'd54;
-				D55 = 7'd55;
-				D56 = 7'd56;
-				D57 = 7'd57;
-				D58 = 7'd58;
-				D59 = 7'd59;
-				D60 = 7'd60;
-				D61 = 7'd61;
-				D62 = 7'd62;
-				D63 = 7'd63;
-				D64 = 7'd64;
-				D65 = 7'd65;
-				WAIT = 7'd66;
+	localparam 	D0 = 7'd0,
+				D1 = 7'd1,
+				D2 = 7'd2,
+				D3 = 7'd3,
+				D4 = 7'd4,
+				D5 = 7'd5,
+				D6 = 7'd6,
+				D7 = 7'd7,
+				D8 = 7'd8,
+				D9 = 7'd9,
+				D10 = 7'd10,
+				D11 = 7'd11,
+				D12 = 7'd12,
+				D13 = 7'd13,
+				D14 = 7'd14,
+				D15 = 7'd15,
+				D16 = 7'd16,
+				D17 = 7'd17,
+				D18 = 7'd18,
+				D19 = 7'd19,
+				D20 = 7'd20,
+				D21 = 7'd21,
+				D22 = 7'd22,
+				D23 = 7'd23,
+				D24 = 7'd24,
+				D25 = 7'd25,
+				D26 = 7'd26,
+				D27 = 7'd27,
+				D28 = 7'd28,
+				D29 = 7'd29,
+				D30 = 7'd30,
+				D31 = 7'd31,
+				D32 = 7'd32,
+				D33 = 7'd33,
+				D34 = 7'd34,
+				D35 = 7'd35,
+				D36 = 7'd36,
+				D37 = 7'd37,
+				D38 = 7'd38,
+				D39 = 7'd39,
+				D40 = 7'd40,
+				D41 = 7'd41,
+				D42 = 7'd42,
+				D43 = 7'd43,
+				D44 = 7'd44,
+				D45 = 7'd45,
+				D46 = 7'd46,
+				D47 = 7'd47,
+				D48 = 7'd48,
+				D49 = 7'd49,
+				D50 = 7'd50,
+				D51 = 7'd51,
+				D52 = 7'd52,
+				D53 = 7'd53,
+				D54 = 7'd54,
+				D55 = 7'd55,
+				D56 = 7'd56,
+				D57 = 7'd57,
+				D58 = 7'd58,
+				D59 = 7'd59,
+				D60 = 7'd60,
+				D61 = 7'd61,
+				D62 = 7'd62,
+				D63 = 7'd63,
+				D64 = 7'd64,
+				D65 = 7'd65,
+				WAIT = 7'd66,
+				WAIT_RESET = 7'd67;
 
 	always@(posedge clk) begin: state_table
 		case(curr)
@@ -144,7 +145,8 @@ module reset(
 			D62: next = D63;
 			D63: next = D64;
 			D64: next = D65;
-			D65: next = WAIT;
+			D65: next = WAIT_RESET;
+			WAIT_RESET: next = reset_en ? WAIT_RESET : WAIT; // stay here so that it doesn't keep cycling
 			default: next = WAIT;
 		endcase
 	end
@@ -417,9 +419,12 @@ module reset(
 				y <= 8'b0110_0100; // 100
 			end
 
-
 	always@(*) begin
-		if (reset_en) colour <= 3'b111;
+		if (!reset_en) curr <= WAIT; // stay in wait if reset is off
+		else begin
+			curr <= next; // otherwise go to next state
+			colour <= 3'b111; // colour of reset box
+		end
 	end
 
 endmodule
