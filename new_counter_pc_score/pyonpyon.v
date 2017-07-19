@@ -18,13 +18,7 @@ module pyonpyon
   assign enable = SW[0];
 
   wire [32:0] boxes = 33'b0_1101_0001_0101_1101_1001_0110_1000_1001; // structure of boxes, 0 = left, 1 = right
-
-  wire [7:0] timer;
-  wire [7:0] score1;
-  wire [7:0] score2;
-  wire [3:0] score11;
-  wire [3:0] score12;
-
+  
   wire [3:0] Q1;
   wire [3:0] Q2;
   wire [3:0] pc_score_out_1;
@@ -36,7 +30,7 @@ module pyonpyon
   wire correctkey;
 
   wire ended, ended_player, ended_pc;  // whether either cpu or player ended
-  assign ended = 1'b0; // **************** POTENTIAL ISSUE ****************
+  assign ended = (ended_player | ended_pc); // **************** POTENTIAL ISSUE **************** (the game state)
 
   wire left, right;  // player one controls
   assign left = ~KEY[3];
@@ -65,16 +59,18 @@ module pyonpyon
     .enable(enable),
     .clk(CLOCK_50),
     .resetn(resetn), 
+	 .finished(ended),		// the game state
     .timer_out_one(Q1),
     .timer_out_two(Q2)
   );
 
-  display_counter_down_player player_score(
+  display_counter_down_player player_score(   // player score counter
     .correctkey(correctkey),
     .resetn(resetn),
+	 .finished(ended),				// the game state
     .ended(ended_player),
     .q0(player_score_out_1),
-    .q1(player_score_out_2)
+    .q1(player_score_out_2),
     );
 
   pc_score_counter pc_score(   // pc score counter
@@ -82,9 +78,10 @@ module pyonpyon
     .clk(CLOCK_50),
     .resetn(resetn),
     .speed(SW[17:16]),
+ 	 .finished(ended),	      	// the game state
     .pc_score_one(pc_score_out_1),
     .pc_score_two(pc_score_out_2),
-    .ended(ended_pc)
+    .ended(ended_pc),
   );
 
   // timer display
@@ -148,6 +145,61 @@ module player(
     else correctkey <= correctkey;  // none of the above applies so player didn't press right key
   end
 
+  /*always@(posedge left or posedge right) begin  // when player presses key
+    if (right && box) begin  // box = 1 means box is on the right
+      correctkey <= 1'b1;  // send signal
+		correctkey <= 1'b0;
+    end
+    else if (left && ~box) begin  // box = 0 means box is on the left
+      correctkey <= 1'b1;  // send signal
+		correctkey <= 1'b0;
+    end
+    else correctkey <= 1'b0;  // none of the above applies so player didn't press right key
+  end*/
+  
+  /*always@(posedge left, posedge right) begin  // when player presses key
+    if (box) begin  // box = 1 means box is on the right
+		if (right) begin
+			correctkey <= 1'b1;  // send signal
+			correctkey <= 1'b0;
+		end
+		else correctkey <= 1'b0;
+    end
+    else begin  // box = 0 means box is on the left
+		if (left) begin
+			correctkey <= 1'b1;  // send signal
+			correctkey <= 1'b0;
+		end
+		else correctkey <= 1'b0;
+    end
+  end*/
+
+  /*always@(negedge left, negedge right) begin  // when player releases key
+    correctkey <= 1'b0;  // they didn't press anything so not correctkey
+  end*/
+  
+  /*always@(posedge left) begin  // when player presses key
+    if (~box) begin  // box = 1 means box is on the right
+			correctkeyleft <= 1'b1;  // send signal
+	end
+		else correctkeyleft <= 1'b0;
+	end
+	
+	always@(posedge right) begin  // when player presses key
+    if (box) begin  // box = 1 means box is on the right
+			correctkeyright <= 1'b1;  // send signal
+		end
+		else correctkeyright <= 1'b0;
+	end*/
+
+  /*always@(*) begin
+    if (resetn || ~enable)  // check if reset is on or enable is off
+      correctkey <= 1'b0;  // correct key is always off
+    else
+      correctkey <= correctkey;  // default
+  end*/
+  
+  //assign reg correctkey = correctkeyleft || correctkeyright;
 endmodule
 
 // --------------------
@@ -266,9 +318,10 @@ endmodule
 // --------------------
 // player score counter
 // --------------------
-module display_counter_down_player(correctkey, resetn, ended, q0, q1);
+module display_counter_down_player(correctkey, resetn, finished, ended, q0, q1);
   input correctkey;  // enable when the signal correct is high, player clicks the correct key
   input resetn;  // game reset
+  input finished;		// check game state
   output reg ended;  // signal for the game is ended
   output reg [3:0] q0;  // 4 bit counting (in this case hex4)
   output reg [3:0] q1;  // 4 bit counting (in this case hex5)
@@ -281,16 +334,18 @@ module display_counter_down_player(correctkey, resetn, ended, q0, q1);
       ended <= 1'b0;
     end
     else begin
-      if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
-        if (q1 == 4'b0000) // if the second digit is zero, end game give signal
-          ended <= 1'b1;
-        else begin
-          q0 <= 4'b1001; // change the first digit to 9
-          q1 <= q1 - 1'b1; // second digit minus 1
-        end
-      end
-      else
-        q0 <= q0 - 1'b1; // minus one if q0 (first digit is not 0)
+		if (finished == 1'b0) begin		// if the game not yet finish
+			if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
+			  if (q1 == 4'b0000) // if the second digit is zero, end game give signal
+				 ended <= 1'b1;
+			  else begin
+				 q0 <= 4'b1001; // change the first digit to 9
+				 q1 <= q1 - 1'b1; // second digit minus 1
+			  end
+			end
+			else
+			  q0 <= q0 - 1'b1; // minus one if q0 (first digit is not 0)
+		end
     end
   end
 
@@ -305,6 +360,7 @@ module pc_score_counter(
   input clk,  // CLOCK_50
   input resetn,  // when game reset
   input [1:0] speed,  // speed chosen by player
+  input finished,     // the game state
   output [3:0] pc_score_one,  // first digit of pc number of box with 4 bits
   output [3:0] pc_score_two,  // second digit of pc number of box with 4 bits
   output ended  // signal for the game is ended
@@ -326,7 +382,7 @@ module pc_score_counter(
     .q(easy_out)
   );
 
-  rate_divider med(  // 2 Hz
+  rate_divider my_medium(  // 2 Hz
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
@@ -365,16 +421,18 @@ module pc_score_counter(
     .resetn(resetn),  // reset of the game
     .clk(clk),
     .ended(ended),  // signal for the game is ended
+	 .finished(finished),    // the game state
     .q0(pc_score_one),  // score of pc (first digit)
     .q1(pc_score_two)  // score of pc (second digit)
   );
 
 endmodule
 
-module display_counter_down_pc(enable, resetn, clk, ended, q0, q1);
+module display_counter_down_pc(enable, resetn, clk, ended, finished, q0, q1);
   input enable; // enable when the countdown_start reach zero for pc
   input resetn;  // game reset
   input clk;
+  input finished;      // the game state  
   output reg ended;  // signal for the game is ended
   output reg [3:0] q0; // 4 bit counting (in this case hex4)
   output reg [3:0] q1; // 4 bit counting (in this case hex5)
@@ -387,16 +445,18 @@ module display_counter_down_pc(enable, resetn, clk, ended, q0, q1);
       ended <= 1'b0;  // game didn't end
     end
     else if(enable == 1'b1) begin
-      if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
-        if (q1 == 4'b0000) // if the second digit is zero, give end game signal
-          ended <= 1'b1;
-        else begin
-          q0 <= 4'b1001;   // change the first digit to 9
-          q1 <= q1 - 1'b1; // second digit minus 1
-        end
-      end
-      else
-        q0 <= q0 - 1'b1; // plus one if q0 (first digit is not 9)
+		if (finished == 1'b0) begin     // if the game not yet finish
+			if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
+			  if (q1 == 4'b0000) // if the second digit is zero, give end game signal
+				 ended <= 1'b1;
+			  else begin
+				 q0 <= 4'b1001;   // change the first digit to 9
+				 q1 <= q1 - 1'b1; // second digit minus 1
+			  end
+			end
+			else
+			  q0 <= q0 - 1'b1; // plus one if q0 (first digit is not 9)
+		 end
     end
   end
 
@@ -405,10 +465,11 @@ endmodule
 // --------------------
 // time counter
 // --------------------
-module counter_time(enable, clk, resetn, timer_out_one, timer_out_two);
+module counter_time(enable, clk, resetn, finished, timer_out_one, timer_out_two);
   input enable; // start signal
   input clk;
   input resetn; // reset signal; reset when low
+  input finished;					// signal to stop the timer when the game is finished
   output [3:0] timer_out_one; // output of counter (first digit)
   output [3:0] timer_out_two; // output of counter (second digit)
 
@@ -435,16 +496,18 @@ module counter_time(enable, clk, resetn, timer_out_one, timer_out_two);
     .enable(display_counter_en),
     .resetn(resetn),
     .clk(clk),
+	 .finished(ended),
     .q0(timer_out_one),
     .q1(timer_out_two)
   );  
 
 endmodule
 
-module display_counter_up(enable, resetn, clk, q0, q1);
+module display_counter_up(enable, resetn, clk, finished, q0, q1);
   input enable; // enable when the countdown_start reach zero
   input resetn;
   input clk;
+  input finished;
   output reg [3:0]q0; // 4 bit counting on (in this case hex0)
   output reg [3:0]q1; // 4 bit counting on (in theis case hex1)
 
@@ -455,15 +518,17 @@ module display_counter_up(enable, resetn, clk, q0, q1);
       q1 <= 4'b0000;
     end
     else if (enable == 1'b1) begin
-      if (q0 == 4'b1001) begin  // if first digit is 9, go back to zero (X9->X0)
-        q0 <= 0;
-        if (q1 == 4'b1001) // if the second digit is 9, go back to zero (99->00)
-          q1 <= 0;
-        else
-          q1 <= q1 + 1'b1; // else just add one to the second digit (19->20)
-      end
-      else
-        q0 <= q0 + 1'b1; // plus one if q0 (first digit is not 9)
+		if (finished == 1'b0) begin			// if the game not yet finish
+			if (q0 == 4'b1001) begin  // if first digit is 9, go back to zero (X9->X0)
+			  q0 <= 0;
+			  if (q1 == 4'b1001) // if the second digit is 9, go back to zero (99->00)
+				 q1 <= 0;
+			  else
+				 q1 <= q1 + 1'b1; // else just add one to the second digit (19->20)
+			end
+			else
+			  q0 <= q0 + 1'b1; // plus one if q0 (first digit is not 9)
+		end
     end
   end
 
