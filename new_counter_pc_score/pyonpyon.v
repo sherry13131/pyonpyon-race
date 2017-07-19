@@ -17,7 +17,7 @@ module pyonpyon
   wire enable;  // game starts
   assign enable = SW[0];
 
-  wire [32:0] boxes = 33’b0_1101_0001_0101_1101_1001_0110_1000_1001; // structure of boxes, 0 = left, 1 = right
+  wire [32:0] boxes = 33'b0_1101_0001_0101_1101_1001_0110_1000_1001; // structure of boxes, 0 = left, 1 = right
 
   wire [7:0] timer;
   wire [7:0] score1;
@@ -134,26 +134,20 @@ module player(
   output reg correctkey  // to decrease score and shift box when player presses correct key
 );
 
-  always@(posedge left, posedge right) begin  // when player presses key
-    if (box && right) begin  // box = 1 means box is on the right
+  always@(*) begin  // when player presses key
+	 if (resetn || ~enable)  // check if reset is on or enable is off
+      correctkey <= 1'b0;  // correct key is always off
+    else if (box && right) begin  // box = 1 means box is on the right
       correctkey <= 1'b1;  // send signal
+		correctkey <= 1'b0;
     end
     else if (~box && left) begin  // box = 0 means box is on the left
       correctkey <= 1'b1;  // send signal
+		correctkey <= 1'b0;
     end
-    else correctkey <= 1'b0;  // none of the above applies so player didn't press right key
+    else correctkey <= correctkey;  // none of the above applies so player didn't press right key
   end
 
-  always@(negedge left, negedge right) begin  // when player releases key
-    correctkey <= 1'b0;  // they didn't press anything so not correctkey
-  end
-
-  always@(*) begin
-    if (resetn || ~enable)  // check if reset is on or enable is off
-      correctkey <= 1'b0;  // correct key is always off
-    else
-      correctkey <= correctkey;  // default
-  end
 endmodule
 
 // --------------------
@@ -332,7 +326,7 @@ module pc_score_counter(
     .q(easy_out)
   );
 
-  rate_divider medium(  // 2 Hz
+  rate_divider med(  // 2 Hz
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
