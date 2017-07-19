@@ -144,62 +144,7 @@ module player(
     end
     else correctkey <= correctkey;  // none of the above applies so player didn't press right key
   end
-
-  /*always@(posedge left or posedge right) begin  // when player presses key
-    if (right && box) begin  // box = 1 means box is on the right
-      correctkey <= 1'b1;  // send signal
-		correctkey <= 1'b0;
-    end
-    else if (left && ~box) begin  // box = 0 means box is on the left
-      correctkey <= 1'b1;  // send signal
-		correctkey <= 1'b0;
-    end
-    else correctkey <= 1'b0;  // none of the above applies so player didn't press right key
-  end*/
-  
-  /*always@(posedge left, posedge right) begin  // when player presses key
-    if (box) begin  // box = 1 means box is on the right
-		if (right) begin
-			correctkey <= 1'b1;  // send signal
-			correctkey <= 1'b0;
-		end
-		else correctkey <= 1'b0;
-    end
-    else begin  // box = 0 means box is on the left
-		if (left) begin
-			correctkey <= 1'b1;  // send signal
-			correctkey <= 1'b0;
-		end
-		else correctkey <= 1'b0;
-    end
-  end*/
-
-  /*always@(negedge left, negedge right) begin  // when player releases key
-    correctkey <= 1'b0;  // they didn't press anything so not correctkey
-  end*/
-  
-  /*always@(posedge left) begin  // when player presses key
-    if (~box) begin  // box = 1 means box is on the right
-			correctkeyleft <= 1'b1;  // send signal
-	end
-		else correctkeyleft <= 1'b0;
-	end
 	
-	always@(posedge right) begin  // when player presses key
-    if (box) begin  // box = 1 means box is on the right
-			correctkeyright <= 1'b1;  // send signal
-		end
-		else correctkeyright <= 1'b0;
-	end*/
-
-  /*always@(*) begin
-    if (resetn || ~enable)  // check if reset is on or enable is off
-      correctkey <= 1'b0;  // correct key is always off
-    else
-      correctkey <= correctkey;  // default
-  end*/
-  
-  //assign reg correctkey = correctkeyleft || correctkeyright;
 endmodule
 
 // --------------------
