@@ -3,16 +3,19 @@ module pyonpyon
     CLOCK_50,           
     KEY,
     SW,
-    HEX0, HEX1, HEX4, HEX5, HEX6, HEX7      
+    HEX0, HEX1, HEX4, HEX5, HEX6, HEX7,
+	 LEDR, LEDG
   );
 
   input CLOCK_50;       
   input   [17:0]  SW;
   input   [3:0]   KEY;
-  output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7;       
+  output  [6:0]   HEX0, HEX1, HEX4, HEX5, HEX6, HEX7; 
+  output  [17:0]   LEDR;
+  output  [7:0] LEDG;
 
   wire resetn;  // resets the board to original, when resetn = 0, it reset; when resetn = 1, it doesn't reset.
-  assign resetn = ~SW[1];
+  assign resetn = SW[1];
 
   wire enable;  // game starts
   assign enable = SW[0];
@@ -30,11 +33,11 @@ module pyonpyon
   wire correctkey;
 
   wire ended, ended_player, ended_pc;  // whether either cpu or player ended
-  assign ended = (ended_player | ended_pc); // **************** POTENTIAL ISSUE **************** (the game state)
+  assign ended = (ended_player | ended_pc);
 
   wire left, right;  // player one controls
-  assign left = ~KEY[3];
-  assign right = ~KEY[2];
+  assign left = ~KEY[1];
+  assign right = ~KEY[0];
 
   player p(  // player module
     .resetn(resetn),
@@ -42,17 +45,24 @@ module pyonpyon
     .box(next_box),
     .left(left),
     .right(right),
-    .correctkey(correctkey)
+    .correctkeyled_right(LEDG[0]),
+	 .correctkeyled_left(LEDG[2]),
+	 .correctkey(correctkey)
   );
 
   shifter s(  // shifter for boxes
     .loadval(boxes),
-    .load_n(resetn),
+    .load_n(1'b1),  // when it's 0, it loads, has to be 1 to shift
     .shiftright(enable),
     .asr(1'b0),
     .clk(correctkey),
-    .reset_n(resetn),
-    .q(next_box)  // next box to traverse
+    .reset_n(resetn),  // when it's 1, it resets (and loads)
+    .q0(LEDR[0]),
+    .q1(LEDR[1]),
+    .q2(LEDR[2]),
+    .q3(LEDR[3]),
+    .q4(LEDR[4]),
+	 .q(next_box)// next box to traverse
   );
 
   counter_time ctimer(  // timer counter
@@ -128,23 +138,29 @@ module player(
   input box,  // next box to advance (from shifter)
   input left,  // left key
   input right,  // right key
+  output correctkeyled_left,
+  output correctkeyled_right,
   output reg correctkey  // to decrease score and shift box when player presses correct key
 );
 
-  always@(*) begin  // when player presses key
-	 if (resetn || ~enable)  // check if reset is on or enable is off
-      correctkey <= 1'b0;  // correct key is always off
-    else if (box && right) begin  // box = 1 means box is on the right
-      correctkey <= 1'b1;  // send signal
+	assign correctkeyled_right = box;
+	assign correctkeyled_left = ~box;
+  
+  always@(*) begin
+	if (resetn) begin  // check if reset is on or enable is off
+		correctkey <= 1'b0;  // correct key is always off
+	end
+	else if (box && right) begin
+		correctkey <= 1'b1;
+	end
+	else if (~box && left) begin
+		correctkey <= 1'b1;
+	end
+	else begin
 		correctkey <= 1'b0;
-    end
-    else if (~box && left) begin  // box = 0 means box is on the left
-      correctkey <= 1'b1;  // send signal
-		correctkey <= 1'b0;
-    end
-    else correctkey <= correctkey;  // none of the above applies so player didn't press right key
-  end
-	
+	end
+	end
+
 endmodule
 
 // --------------------
@@ -157,11 +173,12 @@ module shifter(
   input asr,  // always 0
   input clk,  // uses correctkey from player module to shift
   input reset_n,  // same as load_n
-  output q  // next box to traverse, 0 = left, 1 = right
+  output q0, q1, q2, q3, q4, q  // next box to traverse, 0 = left, 1 = right
 );
 
   wire q32, q31, q30, q29, q28, q27, q26, q25, q24, q23, q22, q21, q20, q19, q18, q17,
-  q16, q15, q14, q13, q12, q11, q10, q9, q8, q7, q6, q5, q4, q3, q2, q1, q0;
+  q16, q15, q14, q13, q12, q11, q10, q9, q8, q7, q6, q5;
+  
   assign q = q0;
 
   shifterbit S32(.load_val(loadval[32]), .in(1'b0), .shift(shiftright), .load_n(load_n), .clk(clk), .reset_n(reset_n), .out(q32));
@@ -229,6 +246,7 @@ module shifterbit(load_val, in, shift, load_n, clk, reset_n, out);
     .D(loadwire),
     .clock(clk),
     .reset(reset_n),
+    .loadval(load_val),
     .qout(out)  // output from flipflop
   );
 
@@ -243,17 +261,18 @@ module mux2to1(x, y, s, m);
   assign m = s & y | ~s & x;
 endmodule
 
-module flipflop(D, clock, reset, qout);
+module flipflop(D, clock, reset, loadval, qout);
   input D;
   input clock;
   input reset;
+  input loadval;
   reg Q;
   output qout;
 
-  always @(posedge clock)
+  always @(posedge clock, posedge reset)
     begin
-      if (reset == 1'b0)  // synchronous active low reset
-        Q <= 0;
+      if (reset)  // synchronous active low reset
+        Q <= loadval;
       else
         Q <= D;
     end
@@ -273,7 +292,7 @@ module display_counter_down_player(correctkey, resetn, finished, ended, q0, q1);
 
   // asynchrnously handle reset_n signals
   always @(posedge correctkey) begin  // when player presses the correct key
-    if(resetn == 1'b0) begin  // begin the score from 32 boxes
+    if(resetn) begin  // begin the score from 32 boxes
       q0 <= 4'b0010;  // 2 in digits
       q1 <= 4'b0011;  // 3 in tens
       ended <= 1'b0;
@@ -365,8 +384,8 @@ module pc_score_counter(
     .enable(display_counter_en),  // enable for the score counter -1
     .resetn(resetn),  // reset of the game
     .clk(clk),
-    .ended(ended),  // signal for the game is ended
 	 .finished(finished),    // the game state
+    .ended(ended),  // signal for the game is ended
     .q0(pc_score_one),  // score of pc (first digit)
     .q1(pc_score_two)  // score of pc (second digit)
   );
@@ -384,7 +403,7 @@ module display_counter_down_pc(enable, resetn, clk, ended, finished, q0, q1);
 
   // asynchrnously handle reset_n signals
   always @(posedge clk) begin
-    if(resetn == 1'b0) begin  // begin the score from 32 boxes
+    if(resetn) begin  // begin the score from 32 boxes
       q0 <= 4'b0010;  // right
       q1 <= 4'b0011;  // left
       ended <= 1'b0;  // game didn't end
@@ -431,10 +450,10 @@ module counter_time(enable, clk, resetn, finished, timer_out_one, timer_out_two)
   );
 
   // give enable value when the rd_1hz_out reach 0
-  always @(*)
-    begin
-      display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0; // 1 Hz
-    end
+  always @(*) begin
+    if (!finished) display_counter_en = (rd_1hz_out == 28'b0) ? 1 : 0; // 1 Hz
+    else display_counter_en = 1'b0;
+  end
 
   // display the counter
   display_counter_up displayOneHz(
@@ -458,7 +477,7 @@ module display_counter_up(enable, resetn, clk, finished, q0, q1);
 
   // asynchrnously handle reset_n signals
   always @(posedge clk) begin
-    if(resetn == 1'b0) begin
+    if(resetn) begin
       q0 <= 4'b0000;
       q1 <= 4'b0000;
     end
@@ -488,7 +507,7 @@ module rate_divider(enable, clk, resetn, countdown_start, q);
 
   // start counting down until 0
   always @(posedge clk) begin
-    if(resetn == 1'b0) // when clear_b is 0
+    if(resetn) // when clear_b is 0
       q <= countdown_start;
     else if(enable == 1'b1) // decrement q only when enable is high
       q <= (q == 0) ? countdown_start : q - 1'b1; // if we get to 0, set back to value given originally
