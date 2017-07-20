@@ -77,7 +77,8 @@ module pyonpyon
   display_counter_down_player player_score(   // player score counter
     .correctkey(correctkey),
     .resetn(resetn),
-	 .finished(ended),				// the game state
+	 .finished(ended),
+    .clk(CLOCK_50),	 // the game state
     .ended(ended_player),
     .q0(player_score_out_1),
     .q1(player_score_out_2),
@@ -282,22 +283,23 @@ endmodule
 // --------------------
 // player score counter
 // --------------------
-module display_counter_down_player(correctkey, resetn, finished, ended, q0, q1);
+module display_counter_down_player(correctkey, resetn, clk, finished, ended, q0, q1);
   input correctkey;  // enable when the signal correct is high, player clicks the correct key
   input resetn;  // game reset
+  input clk;
   input finished;		// check game state
   output reg ended;  // signal for the game is ended
   output reg [3:0] q0;  // 4 bit counting (in this case hex4)
   output reg [3:0] q1;  // 4 bit counting (in this case hex5)
 
   // asynchrnously handle reset_n signals
-  always @(posedge correctkey) begin  // when player presses the correct key
+  always @(posedge clk) begin  // when player presses the correct key
     if(resetn) begin  // begin the score from 32 boxes
       q0 <= 4'b0010;  // 2 in digits
       q1 <= 4'b0011;  // 3 in tens
       ended <= 1'b0;
     end
-    else begin
+    else if(correctkey) begin
 		if (finished == 1'b0) begin		// if the game not yet finish
 			if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
 			  if (q1 == 4'b0000) // if the second digit is zero, end game give signal
