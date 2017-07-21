@@ -120,7 +120,7 @@ module pyonpyon
     .highscore2_out(highscore2)
   );
 
-  plot player_plot(  // plots on vga adapter for player
+  plot_player player_plot(  // plots on vga adapter for player
     .clk(correctkey_posedge),
     .enable(enable),
     .reset_en(resetn),
@@ -129,7 +129,7 @@ module pyonpyon
     .colour(player_colour)
   );
 
-  plot cpu_plot(  // plots on vga adapter for cpu
+  plot_cpu cpu_plot(  // plots on vga adapter for cpu
     .clk(cpu_counter),
     .enable(enable),
     .reset_en(resetn),
@@ -138,9 +138,8 @@ module pyonpyon
     .colour(cpu_colour)
   );
 
-  plot reset_plot(  // plots on vga adapter when reset
+  reset reset_plot(  // plots on vga adapter when reset
     .clk(CLOCK_50),
-    .enable(resetn),
     .reset_en(resetn),
     .x(reset_x),
     .y(reset_y),
@@ -223,10 +222,10 @@ module highscore(
         highscore2 <= timer2;
       end
     end
-    else begin
-      highscore1 <= highscore1;
-      highscore2 <= highscore2;
-    end
+	 else begin
+	     highscore1 <= highscore1;
+		  highscore2 <= highscore2;
+	 end
   end
 
   assign highscore1_out = highscore1;  // outputs the high score
@@ -333,8 +332,8 @@ module shifterbit(
   input clk,
   input reset_n,
   output out
-);
-
+  );
+  
   wire shiftwire;
   wire loadwire;
 
@@ -407,7 +406,7 @@ module pos_edge_det (
   end
 
   assign correctkey_out = correctkey_in & ~correctkey_delay;
-
+ 
 endmodule 
 /*** end of module taken from online ***/
 
@@ -419,35 +418,34 @@ module display_counter_down_player(
   output reg ended,  // signal for when the game ends
   output reg [3:0] q0,  // 4 bit counter for digits (in this case hex4)
   output reg [3:0] q1  // 4 bit counter for tens (in this case hex5)
-);
+  );
 
   always @(posedge correctkey, posedge resetn) begin  // when player presses the correct key or switches reset
-    if(resetn) begin  // begin the score from 0
-      q0 <= 4'b0000;
-      q1 <= 4'b0000;
+    if(resetn) begin  // begin the score from 32
+      q0 <= 4'b0010;  // digits (2)
+      q1 <= 4'b0011;  // tens (3)
       ended <= 1'b0;
     end
-    else if (~finished) begin  // if the game didn't finish yet
-      if (q0 == 4'b0010 && q1 == 4'b0011)  // check if player reached 32 boxes and end the game
-        ended <= 1'b1;
-      else if (q0 == 4'b1001) begin  // otherwise if first digit is 9, go back to zero (X9->X0)
-        q0 <= 0;
-        if (q1 == 4'b1001) // if the second digit is 9, go back to zero (99->00)
-          q1 <= 0;
-        else
-          q1 <= q1 + 1'b1; // else just add one to the second digit (19->20)
+    else if (~finished) begin  // check if the game didn't finish yet
+      if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
+        if (q1 == 4'b0000) // if the second digit is zero, give end game signal
+          ended <= 1'b1;
+        else begin
+          q0 <= 4'b1001;   // change the first digit to 9
+           q1 <= q1 - 1'b1; // decrement tens
+        end
       end
       else
-        q0 <= q0 + 1'b1; // increment if q0 isn't 9 (first digit is not 9)
+        q0 <= q0 - 1'b1; // decrement if q0 isn't 0
     end
   end
 
 endmodule
 
-
 // --------------------
 // cpu score counter
 // --------------------
+/*** some parts in module taken from online ***/
 module pc_score_counter(
   input enable,  // when game starts
   input clk,  // CLOCK_50
@@ -522,6 +520,7 @@ module pc_score_counter(
   );
 
 endmodule
+/*** end of some parts of module taken from online ***/
 
 module display_counter_down_pc(
   input enable, // enable for the score counter to decrement
@@ -531,7 +530,7 @@ module display_counter_down_pc(
   output reg ended,  // sends signal for when cpu reaches 0
   output reg [3:0] q0, // cpu score (digits)
   output reg [3:0] q1  // cpu score (tens)
-);
+  );
 
   always @(posedge clk) begin
     if(resetn) begin  // begin the score from 32 boxes
@@ -539,8 +538,8 @@ module display_counter_down_pc(
       q1 <= 4'b0011;  // tens (3)
       ended <= 1'b0;  // game didn't end
     end
-    else if(enable == 1'b1) begin  // check if game is enabled
-      if (finished == 1'b0) begin  // check if the game didn't finish yet
+    else if (enable) begin  // check if game is enabled
+      if (~finished) begin  // check if the game didn't finish yet
         if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
           if (q1 == 4'b0000) // if the second digit is zero, give end game signal
             ended <= 1'b1;
@@ -560,6 +559,7 @@ endmodule
 // --------------------
 // time counter
 // --------------------
+/*** some parts of module taken from online ***/
 module counter_time(
   input enable,  // check if game started
   input clk,
@@ -567,7 +567,7 @@ module counter_time(
   input finished,  // signal to stop the timer when the game is finished
   output [3:0] timer_out_one,  // output of counter (digits)
   output [3:0] timer_out_two  // output of counter (tens)
-);
+  );
 
   reg display_counter_en; // pulse to send to increase time
 
@@ -583,7 +583,7 @@ module counter_time(
 
   // give enable value when timer_out reaches 0
   always @(*) begin
-    if (!finished) display_counter_en = (timer_out == 28'b0) ? 1 : 0; // 1 Hz
+    if (~finished) display_counter_en = (timer_out == 28'b0) ? 1 : 0; // 1 Hz
     else display_counter_en = 1'b0;
   end
 
@@ -598,6 +598,7 @@ module counter_time(
   );  
 
 endmodule
+/*** end of some parts of module taken from online ***/
 
 module display_counter_up(
   input enable,  // enable when the timer_out reaches zero
@@ -606,15 +607,15 @@ module display_counter_up(
   input finished,  // checks if game finished yet
   output reg [3:0] q0, // 4 bit counting digits (in this case hex0)
   output reg [3:0] q1 // 4 bit counting tens (in this case hex1)
-);
+  );
 
   always @(posedge clk) begin
     if(resetn) begin  // reset timer back to 0
       q0 <= 4'b0000;
       q1 <= 4'b0000;
     end
-    else if (enable == 1'b1) begin  // check if game started
-      if (finished == 1'b0) begin  // if the game didn't finish yet
+    else if (enable) begin  // check if game started
+      if (~finished) begin  // if the game didn't finish yet
         if (q0 == 4'b1001) begin  // if digits is 9, go back to zero (X9->X0)
           q0 <= 0;
           if (q1 == 4'b1001) // if tens is 9, go back to zero (99->00)
@@ -630,23 +631,25 @@ module display_counter_up(
 
 endmodule
 
+/*** module taken from online ***/
 module rate_divider(
   input enable,  // checks if game started
   input resetn,  // resets
   input clk,  // internal clock
   input [27:0] countdown_start, // countdown from the given value
   output reg [27:0] q // output register of the countdown value
-);
+  );
 
   // start counting down until 0
   always @(posedge clk) begin
     if(resetn) // change back to original countdown if reset
       q <= countdown_start;
-    else if(enable == 1'b1) // decrement q only when enable is high
+    else if(enable) // decrement q only when enable is high
       q <= (q == 0) ? countdown_start : q - 1'b1; // if we get to 0, set back to value given originally
   end
 
 endmodule
+/*** end of module taken from online ***/
 
 // --------------------
 // decimal decoder
@@ -654,7 +657,7 @@ endmodule
 module dec_decoder(
   input [3:0] dec_digit,
   output reg [6:0] segments
-);
+  );
 
   always @(*) begin
     case (dec_digit)  // for decimal number only
