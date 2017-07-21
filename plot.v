@@ -9,6 +9,18 @@ module plot(
 	output reg [2:0] colour
 	);
 	
+	wire [7:0] player_x;
+	wire [6:0] player_y;
+	wire [2:0] player_colour;
+	
+	wire [7:0] cpu_x;
+	wire [6:0] cpu_y;
+	wire [2:0] cpu_colour;
+	
+	wire [7:0] reset_x;
+	wire [6:0] reset_y;
+	wire [2:0] reset_colour;
+	
   plot_player player_plot(  // plots on vga adapter for player
     .clk(correctkey_posedge),
     .enable(enable),
