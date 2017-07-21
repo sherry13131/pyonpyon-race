@@ -1,4 +1,4 @@
-module plot(
+module reset(
 	input clk,
 	input reset_en,
 	output reg [7:0] x,

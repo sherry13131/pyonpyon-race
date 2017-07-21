@@ -1,4 +1,4 @@
-module plot(
+module plot_cpu(
 	input clk,
 	input enable,
 	input reset_en,

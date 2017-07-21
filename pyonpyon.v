@@ -4,7 +4,17 @@ module pyonpyon
     KEY,
     SW,
     HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7,
-    LEDR, LEDG
+    LEDR, LEDG,
+	 
+ 
+	VGA_CLK,   						
+	VGA_HS,							
+	VGA_VS,						
+	VGA_BLANK_N,					
+	VGA_SYNC_N,					
+	VGA_R,   					
+	VGA_G,	 						
+	VGA_B   
   );
 
   input CLOCK_50;       
@@ -13,6 +23,19 @@ module pyonpyon
   output  [6:0]   HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7; 
   output  [17:0]   LEDR;
   output  [7:0] LEDG;
+  
+  output			VGA_CLK;   				
+	output			VGA_HS;					
+	output			VGA_VS;					
+	output			VGA_BLANK_N;			
+	output			VGA_SYNC_N;				
+	output	[9:0]	VGA_R;   				
+	output	[9:0]	VGA_G;	 				
+	output	[9:0]	VGA_B;  
+	
+	wire [2:0] colour;
+	wire [7:0] x;
+	wire [6:0] y;
 
   wire resetn;  // resets the board to original
   assign resetn = SW[8];
@@ -45,6 +68,28 @@ module pyonpyon
   wire left, right;  // player controls
   assign left = SW[0];
   assign right = SW[17];
+  
+  vga_adapter VGA(
+			.resetn(1'b1),
+			.clock(CLOCK_50),
+			.colour(colour),
+			.x(x),
+			.y(y),
+			.plot(1'b1),
+			.VGA_R(VGA_R),
+			.VGA_G(VGA_G),
+			.VGA_B(VGA_B),
+			.VGA_HS(VGA_HS),
+			.VGA_VS(VGA_VS),
+			.VGA_BLANK(VGA_BLANK_N),
+			.VGA_SYNC(VGA_SYNC_N),
+			.VGA_CLK(VGA_CLK)
+			);
+		defparam VGA.RESOLUTION = "160x120";
+		defparam VGA.MONOCHROME = "FALSE";
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+		defparam VGA.BACKGROUND_IMAGE = "background.mif";
+  
 
   player p(  // player module
     .resetn(resetn),
@@ -120,32 +165,17 @@ module pyonpyon
     .highscore2_out(highscore2)
   );
 
-  plot_player player_plot(  // plots on vga adapter for player
-    .clk(correctkey_posedge),
-    .enable(enable),
-    .reset_en(resetn),
-    .x(player_x),
-    .y(player_y),
-    .colour(player_colour)
-  );
-
-  plot_cpu cpu_plot(  // plots on vga adapter for cpu
-    .clk(cpu_counter),
-    .enable(enable),
-    .reset_en(resetn),
-    .x(cpu_x),
-    .y(cpu_y),
-    .colour(cpu_colour)
-  );
-
-  reset reset_plot(  // plots on vga adapter when reset
+  plot plotter(  // plot
     .clk(CLOCK_50),
-    .reset_en(resetn),
-    .x(reset_x),
-    .y(reset_y),
-    .colour(reset_colour)
+	 .enable(enable),
+	 .resetn(resetn),
+	 .correctkey_posedge(correctkey_posedge),
+	 .cpu_counter(cpu_counter),
+	 .x(x),
+	 .y(y),
+	 .colour(colour)
   );
-
+  
   // timer display
   dec_decoder h0(
     .dec_digit(Q1),
