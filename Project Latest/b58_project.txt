@@ -1,0 +1,134 @@
+CSCB58 Project File: Summer 2017
+
+Team Member A
+-------------
+First Name: Khansa
+Last Name: Kiasatina
+Student Number: 1003159556
+UofT E-mail Address: khansa.kiasatina@mail.utoronto.ca
+
+Team Member B
+-------------
+First Name: Hoi Yan (Sherry)
+Last Name: Ma
+Student Number: 1003158343
+UofT E-mail Address: hoi.ma@mail.utoronto.ca
+
+Project Details
+---------------
+Project Title: Pyonpyon Race
+
+Project Description:
+A fun game where you compete against another player to see who can reach the end the fastest. Each player has two keys 
+to press: left or right. On the screen, there'll be 25 white boxes randomly (tentative) placed on either side of a long 
+pole that the player has to jump on to advance by pressing the correct key corresponding to the position of the box. 
+You'll know which box you're currently on because the previous white boxes you've already been on will have changed to 
+a different colour depending on which player you are. When either player finishes, the time taken for the fastest racer 
+and the accuracy score for each player is displayed. The fastest time taken is saved and displayed to see if anyone else 
+can beat the record.
+
+(Other tentative ideas: The next box to advance is either red, blue, or yellow. If it is red, user has to press
+the opposite key of the box position to advance. If it is blue, user has to press the corresponding key for the 
+next box position to advance. If it is yellow, user had to press both keys at the same time to advance.) 
+
+Video URL:
+
+Code URL: https://github.com/kiasatina/pyonpyon-race
+
+Proposal
+--------
+What do you plan to have completed by the end of the first lab session?:
+Main:
+- Test the user interface code on the VGA to see if the boxes and poles are drawn correctly in the wanted 
+positions
+- Check if finite state machine works by testing if colour of box changes when player presses the correct key 
+to advance
+Other:
+- Complete the timer for the game to see if it's counting correctly depending on when the game starts and 
+stops
+- Test the decimal decoder written for the time and accuracy score
+- (optional) Test the randomisation modules to see if the positions of the boxes change when a new game starts
+
+What do you plan to have completed by the end of the second lab session?:
+Main:
+- Debug main code to fix any errors or issues present
+Other:
+- Add or remove features of game depending on whether they work or not, for example randomisation, new colours
+for the boxes, removing colours altogether
+
+What do you plan to have completed by the end of the third lab session?:
+Main:
+- Debug main code so that we actually have something to present in the last lab session
+
+What is your backup plan if things don’t work out as planned?
+- Randomisation modules don't work: positions of boxes remain fixed even if new game starts
+- Colour doesn't change when user advances: player has to be attentive and decide for themselves which key
+to press next
+
+What hardware will you need beyond the DE2 board 
+- VGA monitor
+
+Motivations
+-----------
+How does this project relate to the material covered in CSCB58?:
+The project contains finite state machines for features like recording where the player is currently at in the race and 
+allowing the players' accuracy to be calculated. It also countains counters to count the time taken for either player to 
+reach the end, and also to calculate their scores. For the time taken, a rate divider will be used so that it counts time 
+accurately. The VGA monitor will be used to output the poles and boxes so the player can visually see the boxes to know
+which key to press next. Hex decoders will be used to show the player's accuracy score while playing the game and at the 
+end, the time taken by the fastest player to reach the end.
+
+Why is this project interesting/cool (for CSCB58 students, and for non CSCB58 students?):
+You get to compete against another player to see who is the fastest and most accurate at pressing the correct key corresponding 
+to what's on the screen. It also contains a lot of pretty complicated features (VGA monitor, counters, FSMs) that was covered in 
+the course and put together to create a cohesive game.
+
+Why did you personally choose this project?:
+It was inspired by a mini game in the game Mario Party on the Nintendo DS called Domino Effect. We wanted to create a game 
+with simple instructions and controls but still fun to play with and easy to bring out the competitive spirit in both players.
+
+Attributions
+------------
+Positive edge detector module: http://www.chipverify.com/verilog/positive-edge-detector-verilog
+Rate divider module: https://gist.github.com/wgma00/4aec84c9937b4c6db64b290342f0470f
+VGA adapter module: Lab 6 starter code
+
+Updates
+-------
+
+Week 1: We tested the decimal counter we wrote for our timer and score-keeper and it worked perfectly. The .mif file we had 
+intended to use for the initial state didn't work because the depth was too high (32768 compared to 19200) so we spent a while 
+trying to find other ways to convert a .bmp file to a .mif file. We couldn't find any so we had to write the .mif file manually 
+and kept testing it using the VGA monitor. We couldn't get the reset module we wrote to work so instead of resetting all the 
+boxes to white again, we decided to just change the colour of the boxes when a new game starts. We were also finding it difficult 
+to draw a 3x3 box continuously despite having the code for it, so we decided to just change the colour of the middle of a box 
+when the player gets to that box.
+
+Week 2: We tested the .mif file again and the graphics showed up after doing some minor changes on the .mif file. We tested 
+the reset module and it works when it is by itself, but not when it's combined with other parts or in another module. We 
+tested the FSM for the game but it doesn't work. We think there are problems in the connections between the datapath and the 
+control because when we test the counter and reset outside the datapath, it works fine. We changed the states of the datapath 
+from using if statements to case statements to check if it would work but it didn't. The player module we created is supposed 
+to show a dot on the screen when the player advances to the next box but it didn't. We tried to debug and rewrite it but we 
+just couldn't get it to work. We are planning on not plotting the dot on the monitor every time the player presses a correct 
+key. We will just decrease the score counter whenever the player press the correct key, and when the player score counter 
+reaches zero, the game will stop. We are also planning on changing the game to a one-player game, so that they play against a 
+CPU in three different modes: easy, medium, hard, so the speed at which the CPU advances in the boxes depends on which mode 
+the player chooses.
+
+Week 3: We decided to ditch the VGA monitor until we can get the actual game working first. First, we fixed the connection
+to the HEX so that the scores and time shows up when the hardware starts up. Initially, the score was counting up for the 
+boxes but we decided to count down so that the player knows how many boxes left to traverse. We changed our idea of using 
+an FSM to check where the player is currently at to using a shifter module to check if the player should press the left or 
+right key next. We had trouble with trying to get the shifter to work but after fixing some connections, it shifts properly. 
+We also changed the player controls from pressing the keys to toggling the switches to imitate actual jumping between boxes, 
+and made sure that the shifter shifts whenever the player toggles the correct key. We show the next switch to toggle in the 
+LED above the switch. Now the player score decreases whenever the player toggles the correct key. We also added the CPU in 
+the game which can be controlled with 4 speeds: easy, medium, hard, and extreme so that the player can try to beat the CPU.
+When either the player or CPU finishes, the timer stops and score stops as well, and we added a high score module so that 
+if the player wins and the time is lower than the current high score, it gets saved into the game and displayed. Since all
+the controls in the game work, as of now we are working on trying to plot to the VGA monitor whenever the player or CPU goes
+to the next box. The reset module for the VGA works fine, but the plotter module for CPU only goes back to the start when a
+player or CPU wins, and not when we reset it. The CPU module also sometimes goes 2 boxes at a time for some reason. We find
+that when the player plays at the same time as the CPU (as it should be), some boxes get skipped and there are also stray
+boxes plotted on the screen, so we decided to just use the CPU plotting module to show that it works.
