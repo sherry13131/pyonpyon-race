@@ -5,16 +5,16 @@ module pyonpyon
     SW,
     HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7,
     LEDR, LEDG,
-	 
- 
-	VGA_CLK,   						
-	VGA_HS,							
-	VGA_VS,						
-	VGA_BLANK_N,					
-	VGA_SYNC_N,					
-	VGA_R,   					
-	VGA_G,	 						
-	VGA_B   
+
+
+    VGA_CLK,              
+    VGA_HS,             
+    VGA_VS,           
+    VGA_BLANK_N,          
+    VGA_SYNC_N,         
+    VGA_R,            
+    VGA_G,              
+    VGA_B   
   );
 
   input CLOCK_50;       
@@ -23,19 +23,19 @@ module pyonpyon
   output  [6:0]   HEX0, HEX1, HEX2, HEX3, HEX4, HEX5, HEX6, HEX7; 
   output  [17:0]   LEDR;
   output  [7:0] LEDG;
-  
-  output			VGA_CLK;   				
-	output			VGA_HS;					
-	output			VGA_VS;					
-	output			VGA_BLANK_N;			
-	output			VGA_SYNC_N;				
-	output	[9:0]	VGA_R;   				
-	output	[9:0]	VGA_G;	 				
-	output	[9:0]	VGA_B;  
-	
-	wire [2:0] colour;
-	wire [7:0] x;
-	wire [6:0] y;
+
+  output      VGA_CLK;          
+  output      VGA_HS;         
+  output      VGA_VS;         
+  output      VGA_BLANK_N;      
+  output      VGA_SYNC_N;       
+  output  [9:0] VGA_R;          
+  output  [9:0] VGA_G;          
+  output  [9:0] VGA_B;  
+
+  wire [2:0] colour;
+  wire [7:0] x;
+  wire [6:0] y;
 
   wire resetn;  // resets the board to original
   assign resetn = SW[8];
@@ -63,33 +63,33 @@ module pyonpyon
   wire cpu_counter;  // pulse for when time changes in cpu
 
   wire ended, ended_player, ended_pc;  // wires for ending the game
-  assign ended = (ended_player | ended_pc);  // game ends when either cpu or player ends
+  assign ended = (ended_player || ended_pc);  // game ends when either cpu or player ends
 
   wire left, right;  // player controls
-  assign left = SW[0];
-  assign right = SW[17];
-  
+  assign left = SW[17];
+  assign right = SW[0];
+
   vga_adapter VGA(
-			.resetn(1'b1),
-			.clock(CLOCK_50),
-			.colour(colour),
-			.x(x),
-			.y(y),
-			.plot(1'b1),
-			.VGA_R(VGA_R),
-			.VGA_G(VGA_G),
-			.VGA_B(VGA_B),
-			.VGA_HS(VGA_HS),
-			.VGA_VS(VGA_VS),
-			.VGA_BLANK(VGA_BLANK_N),
-			.VGA_SYNC(VGA_SYNC_N),
-			.VGA_CLK(VGA_CLK)
-			);
-		defparam VGA.RESOLUTION = "160x120";
-		defparam VGA.MONOCHROME = "FALSE";
-		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
-		defparam VGA.BACKGROUND_IMAGE = "background.mif";
-  
+    .resetn(1'b1),
+    .clock(CLOCK_50),
+    .colour(colour),
+    .x(x),
+    .y(y),
+    .plot(1'b1),
+    .VGA_R(VGA_R),
+    .VGA_G(VGA_G),
+    .VGA_B(VGA_B),
+    .VGA_HS(VGA_HS),
+    .VGA_VS(VGA_VS),
+    .VGA_BLANK(VGA_BLANK_N),
+    .VGA_SYNC(VGA_SYNC_N),
+    .VGA_CLK(VGA_CLK)
+  );
+  defparam VGA.RESOLUTION = "160x120";
+  defparam VGA.MONOCHROME = "FALSE";
+  defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+  defparam VGA.BACKGROUND_IMAGE = "background.mif";
+
 
   player p(  // player module
     .resetn(resetn),
@@ -124,7 +124,7 @@ module pyonpyon
     .enable(enable),
     .clk(CLOCK_50),
     .resetn(resetn), 
-    .finished(ended),		
+    .finished(ended),   
     .timer_out_one(Q1),
     .timer_out_two(Q2)
   );
@@ -133,13 +133,13 @@ module pyonpyon
     .correctkey(correctkey_posedge),
     .resetn(resetn),
     .finished(ended),
-    .clk(CLOCK_50),	
+    .clk(CLOCK_50), 
     .ended(ended_player),
     .q0(player_score_out_1),
     .q1(player_score_out_2),
   );
 
-  pos_edge_det correctkey_det(
+  pos_edge_det correctkey_det(  // detects positive edge for player correct key
     .correctkey_in(correctkey),
     .clk(CLOCK_50),
     .correctkey_out(correctkey_posedge)
@@ -150,7 +150,7 @@ module pyonpyon
     .clk(CLOCK_50),
     .resetn(resetn),
     .speed(speed),
-    .finished(ended),	      	
+    .finished(ended),         
     .pc_score_one(pc_score_out_1),
     .pc_score_two(pc_score_out_2),
     .ended(ended_pc),
@@ -167,15 +167,16 @@ module pyonpyon
 
   plot plotter(  // plot
     .clk(CLOCK_50),
-	 .enable(enable),
-	 .resetn(resetn),
-	 .correctkey_posedge(correctkey_posedge),
-	 .cpu_counter(cpu_counter),
-	 .x(x),
-	 .y(y),
-	 .colour(colour)
+    .enable(enable),
+    .ended(ended),
+    .resetn(resetn),
+    .correctkey_posedge(correctkey_posedge),
+    .cpu_counter(cpu_counter),
+    .x(x),
+    .y(y),
+    .colour(colour)
   );
-  
+
   // timer display
   dec_decoder h0(
     .dec_digit(Q1),
@@ -252,10 +253,10 @@ module highscore(
         highscore2 <= timer2;
       end
     end
-	 else begin
-	     highscore1 <= highscore1;
-		  highscore2 <= highscore2;
-	 end
+    else begin
+      highscore1 <= highscore1;
+      highscore2 <= highscore2;
+    end
   end
 
   assign highscore1_out = highscore1;  // outputs the high score
@@ -284,7 +285,7 @@ module player(
     if (resetn) begin  // check if reset is on
       correctkey <= 1'b0;  // correct key is always off
     end
-    else if (box && right) begin  // player presses correct key corresponding to next box
+    else if (box && right) begin  // player presses correct key
       correctkey <= 1'b1;
     end
     else if (~box && left) begin
@@ -362,8 +363,8 @@ module shifterbit(
   input clk,
   input reset_n,
   output out
-  );
-  
+);
+
   wire shiftwire;
   wire loadwire;
 
@@ -436,7 +437,7 @@ module pos_edge_det (
   end
 
   assign correctkey_out = correctkey_in & ~correctkey_delay;
- 
+
 endmodule 
 /*** end of module taken from online ***/
 
@@ -444,25 +445,22 @@ module display_counter_down_player(
   input correctkey,  // increase score when player clicks the correct key
   input resetn,  // resets game
   input clk,
-  input finished,		// check if cpu or player finished the game
+  input finished,   // check if cpu or player finished the game
   output reg ended,  // signal for when the game ends
   output reg [3:0] q0,  // 4 bit counter for digits (in this case hex4)
   output reg [3:0] q1  // 4 bit counter for tens (in this case hex5)
-  );
+);
 
   always @(posedge correctkey, posedge resetn) begin  // when player presses the correct key or switches reset
-    if(resetn) begin  // begin the score from 32
-      q0 <= 4'b0010;  // digits (2)
+    if(resetn) begin  // begin the score from 33
+      q0 <= 4'b0011;  // digits (3)
       q1 <= 4'b0011;  // tens (3)
-      ended <= 1'b0;
     end
     else if (~finished) begin  // check if the game didn't finish yet
       if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
-        if (q1 == 4'b0000) // if the second digit is zero, give end game signal
-          ended <= 1'b1;
-        else begin
+        if(q1 != 4'b0000) begin
           q0 <= 4'b1001;   // change the first digit to 9
-           q1 <= q1 - 1'b1; // decrement tens
+          q1 <= q1 - 1'b1; // decrement tens
         end
       end
       else
@@ -470,6 +468,13 @@ module display_counter_down_player(
     end
   end
 
+  always@(*) begin
+    if (q0 == 4'b0000) begin  // if first digit is zero, check second digit
+      if (q1 == 4'b0000) // if the second digit is zero, give end game signal
+        ended <= 1'b1;
+    end
+    else ended <= 1'b0;
+  end
 endmodule
 
 // --------------------
@@ -489,19 +494,19 @@ module pc_score_counter(
 );
 
   reg display_counter_en;  // enable to decrement from the score
-  assign cpu_counter = display_counter_en;
+  assign cpu_counter = ~resetn && display_counter_en;
 
   // countdown of the rate divider
-  wire [27:0] easy_out;
-  wire [27:0] medium_out;
-  wire [27:0] hard_out;
-  wire [27:0] extreme_out;
+  wire [24:0] easy_out;
+  wire [24:0] medium_out;
+  wire [24:0] hard_out;
+  wire [24:0] extreme_out;
 
   rate_divider easy(  // 1.5 Hz -- easy mode
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-    .countdown_start(28'b1111111001010000001010100),  // 33,333,332 in decimal
+    .countdown_start(25'b1110010011100001101111111),  // 29,999,999 in decimal
     .q(easy_out)
   );
 
@@ -509,7 +514,7 @@ module pc_score_counter(
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-    .countdown_start(28'b1011111010111100000111111),  // 24,999,999 in decimal   
+    .countdown_start(25'b1011111010111100000111111),  // 24,999,999 in decimal   
     .q(medium_out)
   );
 
@@ -517,7 +522,7 @@ module pc_score_counter(
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-    .countdown_start(28'b111111100101000000101001),  // 16,666,665 in decimal
+    .countdown_start(25'b111111100101000000101001),  // 16,666,665 in decimal
     .q(hard_out)
   );
 
@@ -525,17 +530,17 @@ module pc_score_counter(
     .enable(enable),
     .clk(clk),
     .resetn(resetn),
-    .countdown_start(28'b100110001001011001111111),  // 9,999,999 in decimal
+    .countdown_start(25'b100110001001011001111111),  // 9,999,999 in decimal
     .q(extreme_out)
   );
 
   always @(*) begin
     case(speed) // select speed for cpu, sends pulse at certain times
-      2'b00: display_counter_en = (easy_out == 28'b0) ? 1 : 0;   // 1.5 Hz
-      2'b01: display_counter_en = (medium_out == 28'b0) ? 1 : 0;  // 2 Hz
-      2'b10: display_counter_en = (hard_out == 28'b0) ? 1 : 0;  // 3 Hz
-      2'b11: display_counter_en = (extreme_out == 28'b0) ? 1 : 0;  // 5 Hz
-      default: display_counter_en = 28'b0;
+      2'b00: display_counter_en = (easy_out == 25'b0) ? 1 : 0;   // 1.5 Hz
+      2'b01: display_counter_en = (medium_out == 25'b0) ? 1 : 0;  // 2 Hz
+      2'b10: display_counter_en = (hard_out == 25'b0) ? 1 : 0;  // 3 Hz
+      2'b11: display_counter_en = (extreme_out == 25'b0) ? 1 : 0;  // 5 Hz
+      default: display_counter_en = 25'b0;
     endcase
   end
 
@@ -560,11 +565,11 @@ module display_counter_down_pc(
   output reg ended,  // sends signal for when cpu reaches 0
   output reg [3:0] q0, // cpu score (digits)
   output reg [3:0] q1  // cpu score (tens)
-  );
+);
 
   always @(posedge clk) begin
-    if(resetn) begin  // begin the score from 32 boxes
-      q0 <= 4'b0010;  // digits (2)
+    if(resetn) begin  // begin the score from 33 boxes
+      q0 <= 4'b0011;  // digits (3)
       q1 <= 4'b0011;  // tens (3)
       ended <= 1'b0;  // game didn't end
     end
@@ -597,7 +602,7 @@ module counter_time(
   input finished,  // signal to stop the timer when the game is finished
   output [3:0] timer_out_one,  // output of counter (digits)
   output [3:0] timer_out_two  // output of counter (tens)
-  );
+);
 
   reg display_counter_en; // pulse to send to increase time
 
@@ -637,7 +642,7 @@ module display_counter_up(
   input finished,  // checks if game finished yet
   output reg [3:0] q0, // 4 bit counting digits (in this case hex0)
   output reg [3:0] q1 // 4 bit counting tens (in this case hex1)
-  );
+);
 
   always @(posedge clk) begin
     if(resetn) begin  // reset timer back to 0
@@ -668,7 +673,7 @@ module rate_divider(
   input clk,  // internal clock
   input [27:0] countdown_start, // countdown from the given value
   output reg [27:0] q // output register of the countdown value
-  );
+);
 
   // start counting down until 0
   always @(posedge clk) begin
@@ -687,7 +692,7 @@ endmodule
 module dec_decoder(
   input [3:0] dec_digit,
   output reg [6:0] segments
-  );
+);
 
   always @(*) begin
     case (dec_digit)  // for decimal number only
