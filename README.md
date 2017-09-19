@@ -1,4 +1,4 @@
-# Pyonpyon Race
+# pyonpyon-race
+CSCB58 Final Project  
 
-CSCB58 Final Project.
-Compete with another player to see who is the most accurate and fastest at pressing buttons.
+Compete with a CPU in four modes to see who is faster by toggling switches.
